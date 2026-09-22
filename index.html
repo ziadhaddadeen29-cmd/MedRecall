@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#102C44" />
+    <meta name="description" content="MedRecall - create focused medical recall quizzes from your course sources." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MedRecall" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="assets/icon-192.png" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>MedRecall - Study smarter</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close menu">×</button>
+        <div class="brand">
+            <img class="brand-logo" src="assets/medrecall-logo.png" alt="" />
+          <div><strong>MedRecall</strong><small>ACTIVE LEARNING</small></div>
+        </div>
+
+        <nav class="side-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="home"><span class="nav-icon">◈</span>Overview</button>
+          <button class="nav-item" data-view="create"><span class="nav-icon">＋</span>Create quiz</button>
+          <button class="nav-item" data-view="analysis"><span class="nav-icon">▥</span>Analysis</button>
+          <button class="nav-item" data-view="notes"><span class="nav-icon">✎</span>Marked & notes</button>
+          <button class="nav-item" data-view="library"><span class="nav-icon">▤</span>Source library</button>
+          <button class="nav-item" data-view="history"><span class="nav-icon">◷</span>Quiz history</button>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="profile-card">
+          <div class="avatar">MA</div>
+          <span><b>3rd year Student</b><small>Infectious diseases I</small></span>
+        </div>
+      </aside>
+      <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Close menu" hidden></button>
+
+      <main class="main-content">
+        <header class="topbar">
+          <button class="menu-button" id="menuButton" type="button" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+          <div class="crumb" id="crumb">HOME <span>/</span> OVERVIEW</div>
+          <div class="top-actions">
+            <div class="top-avatar">MA</div>
+          </div>
+        </header>
+
+        <section class="view active" id="homeView">
+          <div class="home-hero">
+            <div class="hero-copy">
+              <p class="eyebrow">INFECTIOUS DISEASES I</p>
+              <h1>Make every<br /><em>study session</em> count.</h1>
+              <p class="hero-text">Turn your module sources into targeted questions and remember the details that matter.</p>
+              <p class="bank-size" id="bankSizeSummary">Loading the bundled question bank…</p>
+              <button class="primary-button" data-go-create>Build a quiz <span>→</span></button>
+            </div>
+            <div class="hero-image-wrap">
+              <img src="assets/medrecall-hero.png" alt="A medical student studying microbiology and infection-disease concepts" />
+              <div class="hero-image-overlay"></div>
+            </div>
+            <div class="hero-watermark">MR</div>
+          </div>
+
+          <div class="section-heading row-heading">
+            <div>
+              <p class="eyebrow">YOUR PROGRESS</p>
+              <h2>Your latest topic performance.</h2>
+            </div>
+            <button class="text-button" data-go-create>Create a new quiz <span>→</span></button>
+          </div>
+
+          <div class="stat-grid">
+            <article class="stat-card stat-card-a">
+              <div class="stat-symbol">◌</div>
+              <div><span>QUESTIONS ANSWERED</span><strong id="answeredStat">0</strong><small><b>Ready</b> for your first quiz</small></div>
+            </article>
+            <article class="stat-card stat-card-b">
+              <div class="stat-symbol">↗</div>
+              <div><span>BEST ACCURACY</span><strong id="accuracyStat">—</strong><small>Build confidence topic by topic</small></div>
+            </article>
+          </div>
+
+          <section class="latest-performance" id="latestPerformance"></section>
+          <section class="overview-notes-panel" id="overviewNotes"></section>
+
+          <div class="home-lower">
+            <section class="module-card" id="moduleCoverageCard">
+              <div class="module-top">
+                <div>
+                  <p class="eyebrow">CURRENT MODULE</p>
+                  <h3>Infectious Diseases I</h3>
+                  <p>Microbiology · Parasitology · Pharmacology</p>
+                </div>
+                <div class="module-count"><b id="overallCoveragePercent">0%</b><span>coverage</span></div>
+              </div>
+              <div class="module-progress"><div><span>MCQ COVERAGE</span><b id="overallCoverageCount">0 / 0 answered</b></div><div class="progress-track"><span id="overallCoverageBar"></span></div></div>
+              <div class="module-coverage-list" id="moduleCoverageList"></div>
+              <button class="outline-button" data-go-create>Practice this module <span>→</span></button>
+            </section>
+            <section class="quick-start">
+              <p class="eyebrow">QUICK START</p>
+              <h3>Choose your pace.</h3>
+              <button class="quick-option" data-quick-mode="recall"><span class="quick-icon aqua">✦</span><span><b>Recall mode</b><small>Learn with instant feedback</small></span><i>→</i></button>
+              <button class="quick-option" data-quick-mode="exam"><span class="quick-icon coral">◒</span><span><b>Exam mode</b><small>See your score at the end</small></span><i>→</i></button>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="createView">
+          <div class="page-intro">
+            <p class="eyebrow">QUIZ BUILDER</p>
+            <h1>Create a quiz that fits <em>today's focus.</em></h1>
+            <p>Pick the topics you want to retrieve, then choose how you want to be challenged.</p>
+          </div>
+
+          <form class="builder-grid" id="quizBuilder">
+            <section class="builder-section name-section">
+              <div class="section-label"><span>01</span><div><h2>Name your quiz</h2><p>A name makes it easier to find in your history.</p></div></div>
+              <input id="quizName" class="text-input" type="text" maxlength="52" value="Infectious diseases review" aria-label="Quiz name" />
+            </section>
+
+            <section class="builder-section mode-section">
+              <div class="section-label"><span>02</span><div><h2>Choose your mode</h2><p>Feedback works differently in each mode.</p></div></div>
+              <div class="mode-options">
+                <label class="mode-option selected">
+                  <input type="radio" name="quizMode" value="recall" checked />
+                  <span class="mode-top"><i class="mode-icon">✦</i><b>Recall mode</b><em>Recommended</em></span>
+                  <small>See whether each answer is right immediately, then review your final score.</small>
+                </label>
+                <label class="mode-option">
+                  <input type="radio" name="quizMode" value="exam" />
+                  <span class="mode-top"><i class="mode-icon">◒</i><b>Exam mode</b></span>
+                  <small>Keep feedback hidden until you finish - just like an assessment.</small>
+                </label>
+              </div>
+            </section>
+
+            <section class="builder-section settings-section">
+              <div class="section-label"><span>03</span><div><h2>Set the conditions</h2><p>Control your time and question count.</p></div></div>
+              <div class="settings-cards">
+                <div class="setting-card timer-card">
+                  <div class="setting-title"><span class="setting-icon">◷</span><div><b>Timer</b><small>Keep a steady pace</small></div><label class="switch"><input id="timerToggle" type="checkbox" checked /><span></span></label></div>
+                  <div class="timer-controls" id="timerControls">
+                    <div class="time-inputs">
+                      <label><span>HOURS</span><input id="timerHours" type="number" min="0" max="12" value="0" inputmode="numeric" /></label>
+                      <i>:</i>
+                      <label><span>MINUTES</span><input id="timerMinutes" type="number" min="0" max="59" value="20" inputmode="numeric" /></label>
+                    </div>
+                    <p id="timerValue">20 minutes per quiz</p>
+                  </div>
+                </div>
+                <div class="setting-card count-card">
+                  <div class="setting-title"><span class="setting-icon">#</span><div><b>Number of MCQs</b><small>Choose anywhere from 1 to 200 questions.</small></div></div>
+                  <div class="count-input-wrap">
+                    <input id="questionCount" type="number" min="1" max="200" value="10" inputmode="numeric" aria-label="Number of multiple choice questions" />
+                    <span>MCQs</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="builder-section sources-section">
+              <div class="section-label topic-heading">
+                <span>04</span>
+                <div><h2>Select your topics</h2><p>Choose one area or mix subjects across the module.</p></div>
+                <div class="topic-counter"><b id="selectedTopicCount">0</b> topics selected</div>
+              </div>
+
+              <div class="source-list" id="sourceList"></div>
+            </section>
+
+            <section class="builder-section revisit-section">
+              <div class="section-label"><span>05</span><div><h2>Choose what to practise</h2><p>Use fresh questions or revisit questions from your latest completed quiz.</p></div></div>
+              <div class="revisit-options">
+                <label class="revisit-option selected"><input type="radio" name="reuseMode" value="new" checked /><span class="revisit-radio"></span><span><b>Fresh selected questions</b><small>Use the chosen topics to build a new no-repeat quiz.</small></span></label>
+                <label class="revisit-option"><input type="radio" name="reuseMode" value="wrong" /><span class="revisit-radio"></span><span><b>Questions answered wrong</b><small>Retry only MCQs you answered incorrectly last time.</small></span></label>
+                <label class="revisit-option"><input type="radio" name="reuseMode" value="unknown" /><span class="revisit-radio"></span><span><b>Questions marked “I don't know”</b><small>Practise the questions you intentionally skipped.</small></span></label>
+                <label class="revisit-option"><input type="radio" name="reuseMode" value="missed" /><span class="revisit-radio"></span><span><b>Wrong + “I don't know”</b><small>Bring all missed questions back into one review quiz.</small></span></label>
+                <label class="revisit-option"><input type="radio" name="reuseMode" value="marked" /><span class="revisit-radio"></span><span><b>Marked questions</b><small>Practise questions you flagged for another look.</small></span></label>
+              </div>
+              <p class="revisit-note" id="revisitNote"></p>
+            </section>
+
+            <div class="generate-area">
+              <div class="selection-summary" id="selectionSummary">Select one or more topics to generate your quiz.</div>
+              <button class="generate-button" id="generateButton" type="submit" disabled>Generate quiz <span>→</span></button>
+            </div>
+          </form>
+        </section>
+
+        <section class="view" id="libraryView">
+          <div class="page-intro">
+            <p class="eyebrow">SOURCE LIBRARY</p>
+            <h1>Your <em>Infectious Diseases I</em> materials.</h1>
+            <p>These course sources shape the first MedRecall module and its topic collection.</p>
+          </div>
+          <div class="source-library-list" id="sourceLibraryList"></div>
+          <div class="upload-panel">
+            <span class="upload-symbol">＋</span>
+            <div><h3>More modules are on the way</h3><p>MedRecall is ready to grow beyond Infectious Diseases I when you are.</p></div>
+            <button class="outline-button" type="button" id="uploadHint">Add source later</button>
+          </div>
+          <div class="question-import-panel">
+            <div><strong>Question bank import</strong><span>Import a JSON array of MCQs for this browser.</span></div>
+            <input id="questionImport" type="file" accept="application/json,.json" hidden>
+            <button class="outline-button" type="button" id="questionImportButton">Import JSON</button>
+          </div>
+          <div class="progress-tools">
+            <div><strong>Offline app & your progress</strong><span id="offlineStatus">Preparing offline access…</span><span id="progressStorageStatus">Loading saved progress…</span></div>
+            <div class="progress-tools-actions">
+              <button class="outline-button" type="button" id="installAppButton">Install app</button>
+              <button class="outline-button" type="button" id="exportProgressButton">Export Progress</button>
+              <button class="outline-button" type="button" id="importProgressButton">Import Progress</button>
+              <button class="outline-button" type="button" id="resetProgressButton">Reset Progress</button>
+              <button class="outline-button" type="button" id="contactDeveloperButton">Contact Developer</button>
+              <input id="progressImportFile" type="file" accept="application/json,.json" hidden>
+            </div>
+            <p>On iPhone, use Safari’s Share menu → Add to Home Screen. Keep a backup when changing phones or browsers.</p>
+          </div>
+        </section>
+
+        <section class="view" id="historyView">
+          <div class="page-intro">
+            <p class="eyebrow">QUIZ HISTORY</p>
+            <h1>See how your <em>recall improves.</em></h1>
+            <p>Completed quizzes are kept here in this browser.</p>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
+
+        <section class="view" id="analysisView">
+          <div class="page-intro">
+            <p class="eyebrow">PERFORMANCE ANALYSIS</p>
+            <h1>Know each topic <em>by the numbers.</em></h1>
+            <p>See how many MCQs are available, attempted, correct, wrong, or marked “I don't know”.</p>
+          </div>
+          <div class="analysis-summary" id="analysisSummary"></div>
+          <div class="analysis-panels">
+            <section class="analysis-panel"><div class="analysis-panel-heading"><div><p class="eyebrow">BY SUBJECT</p><h2>Module accuracy & coverage</h2></div></div><div class="module-analysis-list" id="moduleAnalysisList"></div></section>
+            <section class="analysis-panel"><div class="analysis-panel-heading"><div><p class="eyebrow">STUDY SIGNALS</p><h2>Where to focus next</h2></div></div><div class="analysis-insights" id="analysisInsights"></div></section>
+          </div>
+          <div class="analysis-table-wrap">
+            <table class="analysis-table">
+              <thead><tr><th>Topic</th><th>Available</th><th>Unique answered</th><th>Attempts</th><th>Correct</th><th>Wrong</th><th>Don't know</th></tr></thead>
+              <tbody id="analysisRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="notesView">
+          <div class="page-intro">
+            <p class="eyebrow">MARKED QUESTIONS & NOTES</p>
+            <h1>Your personal <em>review shelf.</em></h1>
+            <p>Questions you flagged with your own study notes.</p>
+          </div>
+          <div class="saved-notes-list" id="savedNotesList"></div>
+        </section>
+
+        <section class="view" id="quizView">
+          <div class="quiz-topline">
+            <button class="back-to-builder" id="exitQuiz">← Exit quiz</button>
+            <div class="quiz-name-top" id="quizNameTop">Infectious diseases review</div>
+            <div class="quiz-timer" id="quizTimer"><span>◷</span> <b>20:00</b></div>
+          </div>
+          <div class="quiz-progress-wrap">
+            <div><span id="progressText">QUESTION 1 OF 10</span><b id="scoreLive">0 correct</b></div>
+            <div class="quiz-progress"><span id="quizProgress"></span></div>
+          </div>
+          <div class="question-stage">
+            <span class="topic-pill" id="quizTopic">MICROBIOLOGY</span>
+            <h1 id="questionText">Question text</h1>
+            <div class="answer-list" id="answerList"></div>
+            <div class="feedback-box" id="feedbackBox"></div>
+            <div class="quiz-next-row">
+              <div class="quiz-help">
+                <button class="dont-know-button" id="dontKnowButton" type="button">I don't know</button>
+                <small id="keyboardHint">Choose the best answer</small>
+                <button class="report-question-button" id="reportQuestionButton" type="button">⚑ Report</button>
+              </div>
+              <div class="quiz-actions">
+                <button class="mark-question-button" id="markQuestionButton" type="button" aria-pressed="false">☆ Mark + note</button>
+                <button class="next-button" id="nextButton" disabled>Next question <span>→</span></button>
+              </div>
+            </div>
+            <div class="note-editor" id="noteEditor" hidden>
+              <label for="questionNote">Your note for this question</label>
+              <textarea id="questionNote" rows="3" maxlength="500" placeholder="Add a short reminder for your next review..."></textarea>
+              <div><small id="noteSaveStatus">Notes are saved on this device.</small><button type="button" id="saveQuestionNote">Save note</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="resultsView">
+          <div class="results-card">
+            <span class="results-spark one">✦</span><span class="results-spark two">✧</span><span class="results-spark three">✦</span>
+            <div class="result-ring"><div><span>SCORE</span><b id="resultPercent">0%</b></div></div>
+            <p class="eyebrow" id="resultsMode">RECALL SESSION COMPLETE</p>
+            <h1>Nice work,<br /><em>keep recalling.</em></h1>
+            <p id="resultDescription">You completed your quiz.</p>
+            <p class="result-count-line"><b id="resultOutOf">0 / 0</b> MCQs correct</p>
+            <div class="result-stats">
+              <div><b id="resultCorrect">0</b><span>CORRECT</span></div>
+              <div><b id="resultTotal">0</b><span>QUESTIONS</span></div>
+              <div><b id="resultTime">—</b><span>TIME USED</span></div>
+            </div>
+            <div class="result-topic-summary" id="resultTopicSummary"></div>
+            <div class="results-actions"><button class="outline-button" id="reviewQuiz">Review answers</button><button class="primary-button" id="newQuiz">Create another <span>→</span></button></div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <dialog class="report-dialog" id="reportDialog" aria-labelledby="reportDialogTitle">
+      <form method="dialog" class="report-dialog-card" id="reportForm">
+        <div class="dialog-heading"><div><p class="eyebrow">QUESTION FEEDBACK</p><h2 id="reportDialogTitle">Report this MCQ</h2></div><button class="dialog-close" type="submit" value="cancel" aria-label="Close report dialog">×</button></div>
+        <p class="dialog-question" id="reportQuestionPreview"></p>
+        <label class="dialog-field" for="reportIssueType"><span>What seems wrong?</span><select id="reportIssueType" required><option value="Wrong answer">Wrong answer</option><option value="Ambiguous question">Ambiguous question</option><option value="Bad/unclear explanation">Bad/unclear explanation</option><option value="Typo">Typo</option><option value="Duplicate question">Duplicate question</option><option value="Other issue">Other issue</option></select></label>
+        <label class="dialog-field" for="reportComment"><span>Optional comment</span><textarea id="reportComment" rows="4" maxlength="500" placeholder="Briefly explain what you noticed…"></textarea></label>
+        <p class="dialog-note" id="reportStatus">WhatsApp will open with a prepared message. Nothing is sent automatically.</p>
+        <div class="dialog-actions"><button class="outline-button" type="button" id="copyReportButton">Copy Report</button><button class="primary-button" type="button" id="openWhatsAppButton">Open WhatsApp <span>→</span></button></div>
+      </form>
+    </dialog>
+    <footer class="app-credit">Made by Ziad Haddadeen</footer>
+    <script src="question-bank.js"></script>
+    <script src="progress-store.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

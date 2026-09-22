@@ -1,0 +1,122 @@
+[
+  {
+    "topic": "microbial-world",
+    "text": "A bacterial isolate has a cell membrane containing sterols but lacks peptidoglycan. Which organism group best fits these structural features?",
+    "answers": [
+      "Mycoplasma",
+      "Gram-positive cocci",
+      "Enterobacteriaceae",
+      "Mycobacteria"
+    ],
+    "correct": 0,
+    "explanation": "Mycoplasma is the important bacterial exception described in the source: it lacks a cell wall and therefore lacks peptidoglycan, while its cytoplasmic membrane contains sterols."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "Which structural feature most directly contributes to the relatively greater resistance of Gram-negative bacteria to penetration by many large antibiotic molecules?",
+    "answers": [
+      "A thick peptidoglycan layer",
+      "An outer membrane containing porins",
+      "Teichoic acids in the cell wall",
+      "A membrane rich in sterols"
+    ],
+    "correct": 1,
+    "explanation": "Gram-negative bacteria possess an outer membrane containing porins. These pores permit diffusion of lower-molecular-weight compounds while limiting passage of larger antibiotic molecules, contributing to greater antibiotic resistance."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "Two components of Gram-negative lipopolysaccharide have different major roles. Which pairing is correct?",
+    "answers": [
+      "Lipid A—antigenic specificity; O antigen—endotoxin activity",
+      "Lipid A—endotoxin activity; O antigen—antigenic specificity",
+      "Lipid A—cell locomotion; O antigen—peptidoglycan cross-linking",
+      "Lipid A—protein synthesis; O antigen—active nutrient transport"
+    ],
+    "correct": 1,
+    "explanation": "Lipid A is responsible for the toxic endotoxin activity of Gram-negative bacteria, whereas the terminal O antigen is a major surface antigen that determines antigenic specificity."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "A bacterial process requiring electron transport and oxidative phosphorylation would primarily depend on which cellular structure?",
+    "answers": [
+      "Cytoplasmic membrane",
+      "Peptidoglycan layer",
+      "Capsule",
+      "Nucleoid"
+    ],
+    "correct": 0,
+    "explanation": "In bacteria, the cytochromes and other respiratory enzymes responsible for electron transport and oxidative phosphorylation are located in the cytoplasmic membrane."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "A pathogenic bacterium develops a mutant strain that can no longer form its capsule. Which change would most directly reduce its virulence according to the source?",
+    "answers": [
+      "Loss of protection against phagocytosis",
+      "Loss of bacterial protein synthesis",
+      "Failure of oxidative phosphorylation",
+      "Failure of chromosome replication"
+    ],
+    "correct": 0,
+    "explanation": "The capsule contributes to bacterial virulence partly by protecting the organism against phagocytosis. Loss of the capsule therefore removes an important defense against host phagocytic cells."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "A bacterium remains motile but loses its ability to attach efficiently to host mucosal cells. Which bacterial structure is most likely defective?",
+    "answers": [
+      "Common pili",
+      "Flagella",
+      "Capsule",
+      "Inclusion granules"
+    ],
+    "correct": 0,
+    "explanation": "Common pili function as organs of adhesion that allow bacteria to attach to host cells. Flagella are primarily responsible for locomotion, so preserved motility with impaired adherence points to common pili."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "Which comparison between major surface antigens of Gram-positive and Gram-negative bacteria is correct?",
+    "answers": [
+      "Gram-positive: teichoic acid; Gram-negative: O antigen",
+      "Gram-positive: O antigen; Gram-negative: teichoic acid",
+      "Gram-positive: lipid A; Gram-negative: flagellin",
+      "Gram-positive: porin; Gram-negative: peptidoglycan"
+    ],
+    "correct": 0,
+    "explanation": "Teichoic acids are described as major surface antigens of Gram-positive bacteria, whereas the O antigen of lipopolysaccharide is a major surface antigen of Gram-negative bacteria."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "A microorganism contains 70S ribosomes, lacks membrane-bound organelles, and reproduces by binary fission. Which additional feature would be most consistent with the source?",
+    "answers": [
+      "DNA enclosed within a nuclear membrane",
+      "DNA associated with histones",
+      "A prokaryotic cellular organization",
+      "Mitotic cell division"
+    ],
+    "correct": 2,
+    "explanation": "The combination of 70S ribosomes, absence of membrane-bound organelles, and binary fission identifies a prokaryotic cell. Prokaryotes lack a true nucleus and do not undergo mitotic division."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "Which finding best distinguishes a bacterial plasmid from the bacterial nucleoid?",
+    "answers": [
+      "It is composed of RNA rather than DNA",
+      "It is a small extrachromosomal circular DNA element",
+      "It is surrounded by a nuclear membrane",
+      "It contains the bacterial 50S and 30S subunits"
+    ],
+    "correct": 1,
+    "explanation": "A plasmid is a small circular extrachromosomal DNA element that can encode a variable number of genes. The nucleoid instead contains the main bacterial DNA as a long closed circular double helix."
+  },
+  {
+    "topic": "microbial-world",
+    "text": "Which feature would most strongly favor identification of a bacterial cell wall as Gram-positive rather than Gram-negative?",
+    "answers": [
+      "Presence of a thin peptidoglycan layer and porins",
+      "Presence of lipopolysaccharide and an outer membrane",
+      "Presence of a thick peptidoglycan layer and teichoic acid",
+      "Presence of lipid A and an O antigen"
+    ],
+    "correct": 2,
+    "explanation": "Gram-positive bacteria have a thick peptidoglycan layer and contain teichoic acids. Gram-negative bacteria instead have a thin peptidoglycan layer plus an outer membrane containing lipopolysaccharide and porins."
+  }
+]
