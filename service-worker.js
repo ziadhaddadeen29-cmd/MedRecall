@@ -1,12 +1,12 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
 importScripts("./releases.js");
-const CACHE_NAME = "medrecall-offline-4e8dafbfc082";
+const CACHE_NAME = "medrecall-offline-486bbba0e0af";
 const CACHE_PREFIX = "medrecall-offline-";
 const RELEASE_CACHE = CACHE_NAME + "-" + MedRecallRelease.version;
 const APP_FILES = [
   "./", "./index.html", "./styles.css", "./app.js", "./progress-store.js",
-  "./question-bank.js", "./manifest.webmanifest", "./ux.js", "./releases.js",
-  "./assets/medrecall-hero.png", "./assets/medrecall-logo.png",
+  "./question-bank.js", "./manifest.webmanifest", "./ux.js", "./releases.js", "./i18n.js",
+  "./assets/study-doctor.svg", "./assets/medrecall-logo.png",
   "./assets/icon-192.png", "./assets/icon-512.png", "./assets/apple-touch-icon.png",
   "./assets/fonts/dm-mono-400.woff2", "./assets/fonts/dm-mono-500.woff2",
   "./assets/fonts/manrope-400-800.woff2",

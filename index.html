@@ -50,6 +50,7 @@
           <button class="menu-button" id="menuButton" type="button" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">☰</button>
           <div class="crumb" id="crumb">HOME <span>/</span> OVERVIEW</div>
           <div class="top-actions">
+            <button id="languageToggle" class="updates-button" type="button" aria-label="Switch to Arabic">عربي</button>
             <button id="whatsNewButton" class="updates-button" type="button" aria-label="What's New" aria-haspopup="dialog" aria-controls="whatsNewDialog"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="updateBadge" class="update-badge" hidden></span></button>
             <div class="top-avatar">MA</div>
           </div>
@@ -63,10 +64,10 @@
               <h1>Make every<br /><em>study session</em> count.</h1>
               <p class="hero-text">Turn your module sources into targeted questions and remember the details that matter.</p>
               <p class="bank-size" id="bankSizeSummary">Loading the bundled question bank…</p>
-              <button class="primary-button" data-go-create>Build a quiz <span>→</span></button>
+              <div class="hero-buttons"><button class="primary-button" data-go-create>Build a quiz <span>→</span></button><button class="outline-button" id="performanceShortcut" type="button">Check your performance</button></div>
             </div>
             <div class="hero-image-wrap">
-              <img src="assets/medrecall-hero.png" alt="A medical student studying microbiology and infection-disease concepts" />
+              <img src="assets/study-doctor.svg" alt="Illustration of a doctor writing beside medical books" />
               <div class="hero-image-overlay"></div>
             </div>
             <div class="hero-watermark">MR</div>
@@ -287,6 +288,7 @@
           <div class="quiz-progress-wrap">
             <div><span id="progressText">QUESTION 1 OF 10</span><b id="scoreLive">0 correct</b></div>
             <div class="quiz-progress"><span id="quizProgress"></span></div>
+            <nav class="question-navigation" aria-label="Question navigation"><button type="button" id="previousQuestion">Previous</button><label for="questionJump">Jump to question<select id="questionJump"></select></label><button type="button" id="forwardQuestion">Next</button></nav>
           </div>
           <div class="question-stage">
             <span class="topic-pill" id="quizTopic">MICROBIOLOGY</span>
@@ -356,5 +358,6 @@
     <script src="progress-store.js"></script>
     <script src="ux.js"></script>
     <script src="app.js"></script>
+    <script src="i18n.js"></script>
   </body>
 </html>

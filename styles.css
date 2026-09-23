@@ -503,6 +503,36 @@ select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(85, 200, 
 .answer-option.correct, .answer-option.incorrect, .answer-option.selected { animation: answer-state-in .22s ease-out both; }
 .quiz-actions #submitAnswerButton[hidden], .explanation-control[hidden] { display: none !important; }
 .explanation-control { margin-top: 14px; }
+.hero-buttons { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.hero-buttons .outline-button { color: #c8e8e3; border-color: #669893; min-height: 44px; }
+.home-hero { direction: ltr; }
+.hero-image-wrap img { object-fit: contain; mix-blend-mode: normal; }
+.question-navigation { display: flex; align-items: flex-end; gap: 8px; margin-top: 15px; }
+.question-navigation label { flex: 1; min-width: 0; color: #b5d2d0; font-size: 12px; }
+.question-navigation select { display: block; width: 100%; margin-top: 6px; }
+.question-navigation button, .question-navigation select { min-height: 44px; min-width: 0; padding: 8px 10px; border: 1px solid #38616c; border-radius: 8px; background: #102b35; color: #d2e9e5; font-size: 14px; }
+.question-navigation button:disabled { opacity: .4; }
+#languageToggle { min-width: 48px; width: auto; padding: 0 8px; font: 600 14px Arial, sans-serif; }
+html[lang="ar"] .app-shell { direction: ltr; }
+html[lang="ar"] .sidebar, html[lang="ar"] .main-content { direction: rtl; }
+html[lang="ar"] body, html[lang="ar"] button, html[lang="ar"] select, html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3, html[lang="ar"] .eyebrow { font-family: Tahoma, Arial, sans-serif; letter-spacing: normal; }
+html[lang="ar"] .hero-copy, html[lang="ar"] .page-intro, html[lang="ar"] .dialog-heading { direction: rtl; text-align: start; }
+html[lang="ar"] .bank-size { font-family: Tahoma, Arial, sans-serif; letter-spacing: normal; }
+html[lang="ar"] .crumb { direction: rtl; }
+html[lang="ar"] .top-actions { margin-left: 0; margin-right: auto; }
+html[lang="ar"] .topic-option, html[lang="ar"] .answer-option, html[lang="ar"] #questionText, html[lang="ar"] #questionExplanation, html[lang="ar"] .answer-explanation, html[lang="ar"] .topic-pill, html[lang="ar"] [data-academic], html[lang="ar"] .analysis-topic-name { direction: ltr; text-align: left; unicode-bidi: isolate; }
+html[lang="ar"] .subject-header > span:nth-child(2), html[lang="ar"] .module-analysis-title b, html[lang="ar"] .module-coverage-row b, html[lang="ar"] .library-card h3 { direction: ltr; unicode-bidi: isolate; }
+html[lang="ar"] .dialog-field input, html[lang="ar"] .dialog-field textarea { text-align: start; }
+@media (max-width: 600px) {
+  .hero-buttons { align-items: stretch; flex-direction: column; max-width: 290px; }
+  .hero-buttons .primary-button, .hero-buttons .outline-button { width: 100%; }
+  .question-navigation { gap: 5px; }
+}
+@media (max-width: 900px), (max-width: 950px) and (max-height: 500px), (max-width: 1366px) and (pointer: coarse) {
+  .home-hero { min-height: 0; padding-bottom: 285px; }
+  .hero-image-wrap { height: 260px; }
+  .hero-image-overlay { background: linear-gradient(180deg, #0b2736 0%, transparent 24%); }
+}
 .explanation-control button { min-height: 44px; padding: 0 14px; border: 1px solid #477b80; border-radius: 8px; color: #a8ece1; background: #102b35; font-weight: 700; }
 .question-explanation { margin-top: 10px; padding: 13px 15px; border-left: 3px solid #55c8bc; border-radius: 0 8px 8px 0; color: #d3e7e5; background: #102b35; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .report-question-button { min-height: 41px; padding: 0 10px; border: 0; color: #93adaf; background: transparent; font-size: 9px; font-weight: 800; }

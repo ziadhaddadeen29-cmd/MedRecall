@@ -118,13 +118,14 @@
   }
 
   function validActiveQuiz(quiz) {
-    return plainObject(quiz) && onlyKeys(quiz, ["name", "mode", "timerEnabled", "durationSeconds", "secondsLeft", "startedAt", "savedAt", "questionIds", "answers", "index"]) &&
+    return plainObject(quiz) && onlyKeys(quiz, ["name", "mode", "timerEnabled", "durationSeconds", "secondsLeft", "startedAt", "savedAt", "questionIds", "answers", "draftAnswers", "index"]) &&
       typeof quiz.name === "string" && ["recall", "exam"].includes(quiz.mode) && typeof quiz.timerEnabled === "boolean" &&
       ["durationSeconds", "secondsLeft", "startedAt", "savedAt", "index"].every(function(field) { return Number.isFinite(quiz[field]); }) &&
       Array.isArray(quiz.questionIds) && quiz.questionIds.length > 0 && quiz.questionIds.length <= 200 &&
       quiz.questionIds.every(function(id) { return /^q1-[0-9a-f]{32}$/.test(id); }) &&
       Array.isArray(quiz.answers) && quiz.answers.length === quiz.questionIds.length &&
       quiz.answers.every(function(answer) { return answer === null || answer === "unknown" || Number.isInteger(answer) && answer >= 0 && answer <= 3; }) &&
+      (!('draftAnswers' in quiz) || Array.isArray(quiz.draftAnswers) && quiz.draftAnswers.length === quiz.answers.length && quiz.draftAnswers.every(function(answer) { return answer === null || answer === "unknown" || Number.isInteger(answer) && answer >= 0 && answer <= 3; })) &&
       Number.isInteger(quiz.index) && quiz.index >= 0 && quiz.index < quiz.questionIds.length;
   }
 

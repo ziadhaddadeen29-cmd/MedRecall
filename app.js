@@ -77,7 +77,6 @@ let reviewOnly = false;
 let progressState = null;
 let progressReady = false;
 let progressError = null;
-let questionAdvanceLocked = false;
 let pendingAnswer = null;
 let explanationOpen = false;
 
@@ -184,6 +183,7 @@ function saveActiveQuiz() {
     savedAt: Date.now(),
     questionIds: currentQuiz.questions.map(questionId),
     answers: currentQuiz.answers.slice(),
+    draftAnswers: currentQuiz.drafts.slice(),
     index: currentQuiz.index
   };
   saveProgress();
@@ -203,10 +203,10 @@ function restoreActiveQuiz() {
     name: saved.name, mode: saved.mode, timerEnabled: saved.timerEnabled,
     durationSeconds: saved.durationSeconds,
     secondsLeft: saved.timerEnabled ? Math.min(saved.durationSeconds, Math.max(0, saved.secondsLeft - Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000)))) : saved.secondsLeft,
-    startedAt: saved.startedAt, questions: questions, answers: saved.answers.slice(), index: saved.index
+    startedAt: saved.startedAt, questions: questions, answers: saved.answers.slice(), drafts: (saved.draftAnswers || saved.answers).slice(), index: saved.index
   };
   reviewOnly = false;
-  pendingAnswer = null;
+  pendingAnswer = currentQuiz.drafts[currentQuiz.index];
   explanationOpen = false;
   if (currentQuiz.timerEnabled && currentQuiz.secondsLeft <= 0) {
     finishQuiz();
@@ -603,6 +603,7 @@ function startQuiz() {
     startedAt: Date.now(),
     questions: questions,
     answers: new Array(questions.length).fill(null),
+    drafts: new Array(questions.length).fill(null),
     index: 0
   };
   saveActiveQuiz();
@@ -639,15 +640,18 @@ function updateTimer() {
 
 function renderQuestion() {
   const question = currentQuiz.questions[currentQuiz.index];
-  const chosen = currentQuiz.answers[currentQuiz.index];
+  const editingExam = currentQuiz.mode === "exam" && !reviewOnly;
+  const chosen = editingExam ? null : currentQuiz.answers[currentQuiz.index];
+  pendingAnswer = currentQuiz.drafts[currentQuiz.index];
   const subject = getSubjectForTopic(question.topic);
-  const completeCount = currentQuiz.answers.filter(function(answer) { return answer !== null; }).length;
+  const completeCount = (editingExam ? currentQuiz.drafts : currentQuiz.answers).filter(function(answer) { return answer !== null; }).length;
   document.getElementById("progressText").textContent = reviewOnly ? "REVIEW " + (currentQuiz.index + 1) + " OF " + currentQuiz.questions.length : "QUESTION " + (currentQuiz.index + 1) + " OF " + currentQuiz.questions.length;
   document.getElementById("scoreLive").textContent = currentQuiz.mode === "exam" && !reviewOnly ? completeCount + " answered" : getCorrectCount() + " correct";
   document.getElementById("quizProgress").style.width = ((currentQuiz.index + 1) / currentQuiz.questions.length * 100) + "%";
   document.getElementById("quizTopic").textContent = subject.title.toUpperCase();
   document.getElementById("questionText").textContent = question.text;
   document.getElementById("keyboardHint").textContent = reviewOnly ? "Review the correct answer and rationale" : chosen === null ? "Choose, then check your answer" : "Answer checked";
+  if (editingExam) document.getElementById("keyboardHint").textContent = "Selections can be changed until you finish the exam";
   document.getElementById("nextButton").textContent = currentQuiz.index === currentQuiz.questions.length - 1 ? (reviewOnly ? "Back to results" : "Finish quiz →") : (reviewOnly ? "Next answer →" : "Next question →");
   const answerLetters = ["A", "B", "C", "D"];
   const shouldShowAnswerStates = reviewOnly || currentQuiz.mode === "recall";
@@ -669,7 +673,7 @@ function renderQuestion() {
       ? '<span class="answer-explanation"><b>Why?</b> ' + escapeHtml(question.explanation) + '</span>'
       : "";
     return '<button type="button" class="' + className + '" data-answer="' + index + '" aria-pressed="' + String(!reviewOnly && chosen === null && index === pendingAnswer) + '" ' + disabled + '><span class="answer-letter">' + answerLetters[index] + '</span><span class="answer-text">' + escapeHtml(answer) + '</span>' + explanation + '</button>';
-  }).join("") + (chosen === "unknown" ? '<div class="unknown-answer-status">Marked as “I don’t know”. No explanation is shown for this question.</div>' : "");
+  }).join("") + ((editingExam ? pendingAnswer : chosen) === "unknown" ? '<div class="unknown-answer-status">Marked as “I don’t know”. No explanation is shown for this question.</div>' : "");
 
   document.querySelectorAll("[data-answer]").forEach(function(button) {
     button.addEventListener("click", function() { chooseAnswer(Number(button.dataset.answer)); });
@@ -687,9 +691,10 @@ function renderQuestion() {
   dontKnowButton.disabled = chosen !== null || reviewOnly;
   dontKnowButton.textContent = chosen === "unknown" ? "Marked: I don't know" : "I don't know";
   const submitButton = document.getElementById("submitAnswerButton");
-  submitButton.hidden = reviewOnly || chosen !== null;
+  submitButton.hidden = editingExam || reviewOnly || chosen !== null;
   submitButton.disabled = pendingAnswer === null;
-  document.getElementById("nextButton").disabled = chosen === null && !reviewOnly;
+  document.getElementById("nextButton").disabled = false;
+  renderQuestionNavigation();
   const explanationControl = document.getElementById("explanationControl");
   explanationControl.hidden = currentQuiz.mode !== "recall" || reviewOnly || chosen === null || chosen === "unknown";
   const revealButton = document.getElementById("revealExplanation");
@@ -702,8 +707,9 @@ function renderQuestion() {
 }
 
 function chooseAnswer(answerIndex) {
-  if (!currentQuiz || currentQuiz.answers[currentQuiz.index] !== null || reviewOnly) return;
+  if (!currentQuiz || currentQuiz.finished || (currentQuiz.mode !== "exam" && currentQuiz.answers[currentQuiz.index] !== null) || reviewOnly) return;
   pendingAnswer = answerIndex;
+  currentQuiz.drafts[currentQuiz.index] = answerIndex;
   document.querySelectorAll("[data-answer]").forEach(function(button) {
     const selected = Number(button.dataset.answer) === answerIndex;
     button.classList.toggle("selected", selected);
@@ -711,10 +717,16 @@ function chooseAnswer(answerIndex) {
   });
   document.getElementById("submitAnswerButton").disabled = false;
   MedRecallSound.play("select");
+  saveActiveQuiz();
+  renderQuestionNavigation();
+  if (currentQuiz.mode === "exam") {
+    document.querySelector(".unknown-answer-status")?.remove();
+    document.getElementById("scoreLive").textContent = currentQuiz.drafts.filter(function(answer) { return answer !== null; }).length + " answered";
+  }
 }
 
 function submitAnswer() {
-  if (!currentQuiz || reviewOnly || pendingAnswer === null || currentQuiz.answers[currentQuiz.index] !== null) return;
+  if (!currentQuiz || currentQuiz.finished || currentQuiz.mode === "exam" || reviewOnly || pendingAnswer === null || currentQuiz.answers[currentQuiz.index] !== null) return;
   const answerIndex = pendingAnswer;
   pendingAnswer = null;
   explanationOpen = false;
@@ -727,11 +739,14 @@ function submitAnswer() {
 }
 
 function chooseUnknown() {
-  if (!currentQuiz || currentQuiz.answers[currentQuiz.index] !== null || reviewOnly) return;
+  if (!currentQuiz || currentQuiz.finished || (currentQuiz.mode !== "exam" && currentQuiz.answers[currentQuiz.index] !== null) || reviewOnly) return;
+  currentQuiz.drafts[currentQuiz.index] = "unknown";
   pendingAnswer = null;
   explanationOpen = false;
-  currentQuiz.answers[currentQuiz.index] = "unknown";
-  rememberAnsweredQuestion(currentQuiz.questions[currentQuiz.index], "unknown");
+  if (currentQuiz.mode !== "exam") {
+    currentQuiz.answers[currentQuiz.index] = "unknown";
+    rememberAnsweredQuestion(currentQuiz.questions[currentQuiz.index], "unknown");
+  }
   saveActiveQuiz();
   MedRecallSound.play("unknown");
   renderQuestion();
@@ -764,32 +779,54 @@ function buildTopicBreakdown() {
   return Array.from(breakdown.values());
 }
 
+function renderQuestionNavigation() {
+  const jump = document.getElementById("questionJump");
+  jump.innerHTML = currentQuiz.questions.map(function(question, index) {
+    const status = currentQuiz.answers[index] !== null && (reviewOnly || currentQuiz.mode !== "exam") ? "Checked" : currentQuiz.drafts[index] !== null ? "Selected" : "Unanswered";
+    return '<option value="' + index + '">' + (index + 1) + ' — ' + status + '</option>';
+  }).join("");
+  jump.value = String(currentQuiz.index);
+  document.getElementById("previousQuestion").disabled = currentQuiz.index === 0;
+  document.getElementById("forwardQuestion").disabled = currentQuiz.index === currentQuiz.questions.length - 1;
+}
+
+function goToQuestion(index) {
+  if (!currentQuiz || index < 0 || index >= currentQuiz.questions.length || index === currentQuiz.index) return;
+  currentQuiz.index = index;
+  explanationOpen = false;
+  saveActiveQuiz();
+  renderQuestion();
+}
+
 function goToNextQuestion() {
-  if (!currentQuiz || questionAdvanceLocked || (!reviewOnly && currentQuiz.answers[currentQuiz.index] === null)) return;
-  questionAdvanceLocked = true;
-  if (currentQuiz.index < currentQuiz.questions.length - 1) {
-    MedRecallSound.play("click");
-    currentQuiz.index += 1;
-    pendingAnswer = null;
-    explanationOpen = false;
-    saveActiveQuiz();
-    renderQuestion();
-    document.getElementById("nextButton").disabled = true;
-    window.setTimeout(function() {
-      questionAdvanceLocked = false;
-      if (currentQuiz) document.getElementById("nextButton").disabled = currentQuiz.answers[currentQuiz.index] === null && !reviewOnly;
-    }, 280);
-  } else if (reviewOnly) {
-    questionAdvanceLocked = false;
-    setView("results");
-  } else {
-    questionAdvanceLocked = false;
-    finishQuiz();
-  }
+  if (!currentQuiz) return;
+  if (currentQuiz.index < currentQuiz.questions.length - 1) goToQuestion(currentQuiz.index + 1);
+  else if (reviewOnly) setView("results");
+  else finishQuiz();
 }
 
 function finishQuiz() {
-  if (!currentQuiz || reviewOnly) return;
+  if (!currentQuiz || reviewOnly || currentQuiz.finished) return;
+  currentQuiz.finished = true;
+  // Exam selections remain editable until completion. Legacy saved exam answers
+  // were already counted: replace that one outcome without adding another attempt.
+  currentQuiz.questions.forEach(function(question, index) {
+    const draft = currentQuiz.drafts[index];
+    const old = currentQuiz.answers[index];
+    if (draft === null || (currentQuiz.mode !== "exam" && old !== null)) return;
+    const status = getAnswerStatus(draft, question);
+    if (old === null) rememberAnsweredQuestion(question, status);
+    else if (old !== draft) {
+      const stats = progressState.questionStats[questionId(question)];
+      const field = function(value) { return value === "wrong" ? "incorrect" : value; };
+      if (stats) {
+        stats[field(getAnswerStatus(old, question))] -= 1;
+        stats[field(status)] += 1;
+        stats.lastStatus = status;
+      }
+    }
+    currentQuiz.answers[index] = draft;
+  });
   clearInterval(timerInterval);
   const correct = getCorrectCount();
   const total = currentQuiz.questions.length;
@@ -1292,6 +1329,10 @@ document.getElementById("quizBuilder").addEventListener("submit", function(event
   startQuiz();
 });
 document.getElementById("nextButton").addEventListener("click", goToNextQuestion);
+document.getElementById("previousQuestion").addEventListener("click", function() { goToQuestion(currentQuiz.index - 1); });
+document.getElementById("forwardQuestion").addEventListener("click", function() { goToQuestion(currentQuiz.index + 1); });
+document.getElementById("questionJump").addEventListener("change", function(event) { goToQuestion(Number(event.target.value)); });
+document.getElementById("performanceShortcut").addEventListener("click", function() { setView("analysis"); });
 document.getElementById("submitAnswerButton").addEventListener("click", submitAnswer);
 document.getElementById("revealExplanation").addEventListener("click", function() {
   if (!currentQuiz || currentQuiz.mode !== "recall" || reviewOnly || currentQuiz.answers[currentQuiz.index] === null || currentQuiz.answers[currentQuiz.index] === "unknown") return;
@@ -1459,7 +1500,7 @@ async function importProgress(file) {
   try {
     if (file.size > 10 * 1024 * 1024) throw new Error("Backup is larger than 10 MB.");
     const imported = MedRecallProgress.parseBackup(await file.text());
-    if (!window.confirm("Replace all progress on this device with this backup?")) return;
+    if (!window.confirm(MedRecallI18n.t("Replace all progress on this device with this backup?"))) return;
     await MedRecallProgress.flush().catch(function() {});
     await MedRecallProgress.save(imported);
     progressState = imported;
@@ -1475,7 +1516,7 @@ async function importProgress(file) {
 }
 
 async function resetProgress() {
-  if (!progressReady || !window.confirm("Reset all attempts, quiz history, bookmarks, notes, and settings on this device? Export a backup first if you need them.")) return;
+  if (!progressReady || !window.confirm(MedRecallI18n.t("Reset all attempts, quiz history, bookmarks, notes, and settings on this device? Export a backup first if you need them."))) return;
   try {
     await MedRecallProgress.flush().catch(function() {});
     const cleared = MedRecallProgress.empty();

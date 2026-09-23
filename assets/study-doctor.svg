@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 560" role="img" aria-labelledby="title desc">
+  <title id="title">A quiet moment of study</title><desc id="desc">A doctor writing in a notebook with medical books on a desk.</desc>
+  <rect width="640" height="560" fill="#102c3a"/>
+  <circle cx="380" cy="236" r="194" fill="#173f4b"/>
+  <g fill="none" stroke="#386371" stroke-width="2"><path d="M505 72v76m-38-38h76M133 201h56m-28-28v56"/><circle cx="561" cy="332" r="19"/></g>
+  <path d="M271 422q-12-95 12-170l58-20 72 17q34 69 34 173" fill="#d8e8e2" stroke="#082633" stroke-width="5" stroke-linejoin="round"/>
+  <path d="m329 243 22 95 29-96" fill="#45ad9e"/>
+  <path d="m310 242-14 48 34 9-12 29 33 61m46-147 18 48-34 9 12 29-42 61" fill="none" stroke="#94bcb7" stroke-width="4"/>
+  <path d="M331 209v34q20 24 46-1v-39" fill="#d9a784" stroke="#082633" stroke-width="5"/>
+  <path d="M306 140q3-53 54-55 61 3 57 66l-11 54q-13 34-45 29-43-4-51-49" fill="#e8ba94" stroke="#082633" stroke-width="5"/>
+  <path d="M305 165q-30-52 1-76 25-23 51-15 66-9 68 52l-10 44-16-35q-43 13-67-17-1 31-27 47" fill="#132633" stroke="#082633" stroke-width="5"/>
+  <g fill="none" stroke="#183745" stroke-width="4"><path d="m314 163 38 2m9 1 39-2m-47 6h8"/><rect x="315" y="156" width="37" height="24" rx="9"/><rect x="361" y="157" width="37" height="24" rx="9"/><path d="m358 178-2 13 9 1m-17 16q15 8 25-3"/></g>
+  <path d="M297 284q-20 48-11 94l62 22 15-29-37-13 7-54" fill="#e2eee8" stroke="#082633" stroke-width="5"/>
+  <path d="m351 371 21 4 23 20-12 15-39-13" fill="#e8ba94" stroke="#082633" stroke-width="4"/>
+  <path d="M407 281q24 45 34 90l-47 25-15-26 25-20-17-38" fill="#e2eee8" stroke="#082633" stroke-width="5"/>
+  <path d="m380 371-22 19 14 14 28-14" fill="#e8ba94" stroke="#082633" stroke-width="4"/>
+  <path d="M316 259v59q-17 20-31-1v-29m31 30q11 9 27 1" fill="none" stroke="#377e82" stroke-width="5"/>
+  <circle cx="343" cy="319" r="9" fill="#91cfc2" stroke="#377e82" stroke-width="4"/>
+  <path d="M105 420h459l22 25H82z" fill="#87b7ac" stroke="#082633" stroke-width="5"/>
+  <path d="M103 446h462v17H103zm29 17h18v77h-18zm389 0h18v77h-18z" fill="#4b7d79"/>
+  <path d="m280 416 64-14 44 7 44-7 60 16-89 18z" fill="#f3ecd6" stroke="#31565a" stroke-width="3"/><path d="m388 409 15 27m-69-22 36 5m-25 0 27 5m46-9 29-3" stroke="#a3aea0" stroke-width="2"/>
+  <path d="m373 389 18-43" stroke="#e9cc7e" stroke-width="7" stroke-linecap="round"/><path d="m373 389-4 10" stroke="#17323d" stroke-width="3"/>
+  <g stroke="#082633" stroke-width="3"><rect x="127" y="390" width="128" height="28" rx="5" fill="#568f9e"/><rect x="138" y="364" width="110" height="26" rx="4" fill="#e0b46e"/><rect x="120" y="339" width="127" height="25" rx="4" fill="#54b4a2"/></g>
+  <g stroke="#d7eadf" stroke-width="3"><path d="M145 396v16m8-16v16m-12-66h79m-69 29h68"/></g>
+  <path d="M514 379q-29-39-14-61 27 11 20 48 4-46 31-47 9 34-29 60" fill="#5cba9e" stroke="#235a58" stroke-width="3"/><path d="m499 378 5 41h31l7-41z" fill="#cead81" stroke="#082633" stroke-width="3"/>
+</svg>
