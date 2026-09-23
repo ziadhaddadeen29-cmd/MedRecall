@@ -176,13 +176,15 @@
             <section class="builder-section revisit-section">
               <div class="section-label"><span>05</span><div><h2>Choose what to practise</h2><p>Use fresh questions or revisit questions from your latest completed quiz.</p></div></div>
               <div class="revisit-options">
-                <label class="revisit-option selected"><input type="radio" name="reuseMode" value="new" checked /><span class="revisit-radio"></span><span><b>Fresh selected questions</b><small>Use the chosen topics to build a new no-repeat quiz.</small></span></label>
-                <label class="revisit-option"><input type="radio" name="reuseMode" value="wrong" /><span class="revisit-radio"></span><span><b>Questions answered wrong</b><small>Retry only MCQs you answered incorrectly last time.</small></span></label>
-                <label class="revisit-option"><input type="radio" name="reuseMode" value="unknown" /><span class="revisit-radio"></span><span><b>Questions marked “I don't know”</b><small>Practise the questions you intentionally skipped.</small></span></label>
-                <label class="revisit-option"><input type="radio" name="reuseMode" value="missed" /><span class="revisit-radio"></span><span><b>Wrong + “I don't know”</b><small>Bring all missed questions back into one review quiz.</small></span></label>
-                <label class="revisit-option"><input type="radio" name="reuseMode" value="marked" /><span class="revisit-radio"></span><span><b>Marked questions</b><small>Practise questions you flagged for another look.</small></span></label>
+                <label class="revisit-option"><input type="checkbox" name="reuseMode" value="all" /><span class="revisit-radio"></span><span><b>All selected MCQs</b><small>Include every question in your selected topics, even if answered before.</small></span></label>
+                <label class="revisit-option selected"><input type="checkbox" name="reuseMode" value="new" checked /><span class="revisit-radio"></span><span><b>Fresh selected questions</b><small>Use the chosen topics to build a new no-repeat quiz.</small></span></label>
+                <label class="revisit-option"><input type="checkbox" name="reuseMode" value="wrong" /><span class="revisit-radio"></span><span><b>Questions answered wrong</b><small>Retry only MCQs you answered incorrectly last time.</small></span></label>
+                <label class="revisit-option"><input type="checkbox" name="reuseMode" value="unknown" /><span class="revisit-radio"></span><span><b>Questions marked “I don't know”</b><small>Practise the questions you intentionally skipped.</small></span></label>
+                <label class="revisit-option"><input type="checkbox" name="reuseMode" value="missed" /><span class="revisit-radio"></span><span><b>Wrong + “I don't know”</b><small>Bring all missed questions back into one review quiz.</small></span></label>
+                <label class="revisit-option"><input type="checkbox" name="reuseMode" value="marked" /><span class="revisit-radio"></span><span><b>Marked questions</b><small>Practise questions you flagged for another look.</small></span></label>
               </div>
               <p class="revisit-note" id="revisitNote"></p>
+              <div class="practice-selection-actions"><button type="button" class="outline-button" id="selectAllPractice">Select all</button><button type="button" class="outline-button" id="clearPractice">Clear selection</button></div>
             </section>
 
             <div class="generate-area">

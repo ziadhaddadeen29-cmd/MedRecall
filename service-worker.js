@@ -1,5 +1,5 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
-const CACHE_NAME = "medrecall-offline-31598ef9f182";
+const CACHE_NAME = "medrecall-offline-a42c8ce33920";
 const CACHE_PREFIX = "medrecall-offline-";
 const APP_FILES = [
   "./", "./index.html", "./styles.css", "./app.js", "./progress-store.js",

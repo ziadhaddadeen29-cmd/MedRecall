@@ -380,9 +380,8 @@ function saveCurrentQuestionNote() {
   showToast("Question note saved.");
 }
 
-function getReuseMode() {
-  const selected = document.querySelector('input[name="reuseMode"]:checked');
-  return selected ? selected.value : "new";
+function getReuseModes() {
+  return new Set(Array.from(document.querySelectorAll('input[name="reuseMode"]:checked:not(:disabled)'), function(input) { return input.value; }));
 }
 
 function getEligibleQuestions() {
@@ -390,28 +389,21 @@ function getEligibleQuestions() {
   const topicPool = questionBank.filter(function(question) {
     return selectedTopics.has(question.topic);
   });
-  const reuseMode = getReuseMode();
+  const modes = getReuseModes();
   const lastSession = loadLastSession();
-  let questions = topicPool;
-
-  if (reuseMode !== "new") {
-    if (reuseMode === "marked") {
-      const markedIds = new Set(loadMarkedQuestions().filter(function(item) { return item.marked; }).map(function(item) { return item.id; }));
-      questions = topicPool.filter(function(question) { return markedIds.has(questionId(question)); });
-    } else {
-      if (!lastSession) return [];
-      const allowedStatuses = reuseMode === "wrong" ? ["wrong"] : reuseMode === "unknown" ? ["unknown"] : ["wrong", "unknown"];
-      const eligibleIds = new Set(lastSession.answers.filter(function(item) {
-        return allowedStatuses.includes(item.status);
-      }).map(function(item) { return item.id; }));
-      questions = topicPool.filter(function(question) { return eligibleIds.has(questionId(question)); });
-    }
-  } else {
-    questions = questions.filter(function(question) { return !answeredKeys.has(questionId(question)); });
-  }
+  const markedIds = new Set(loadMarkedQuestions().filter(function(item) { return item.marked; }).map(function(item) { return item.id; }));
+  const reviewIds = new Set((lastSession ? lastSession.answers : []).filter(function(item) {
+    return (item.status === "wrong" && (modes.has("wrong") || modes.has("missed"))) ||
+      (item.status === "unknown" && (modes.has("unknown") || modes.has("missed")));
+  }).map(function(item) { return item.id; }));
+  const questions = topicPool.filter(function(question) {
+    const id = questionId(question);
+    return modes.has("all") || (modes.has("new") && !answeredKeys.has(id)) ||
+      (modes.has("marked") && markedIds.has(id)) || reviewIds.has(id);
+  });
 
   return Array.from(new Map(questions.map(function(question) {
-    return [questionKey(question), question];
+    return [questionId(question), question];
   })).values());
 }
 
@@ -425,16 +417,14 @@ function updateRevisitOptions() {
   const hasMarkedQuestions = loadMarkedQuestions().some(function(item) { return item.marked; });
   const revisitNote = document.getElementById("revisitNote");
   document.querySelectorAll('input[name="reuseMode"]').forEach(function(input) {
-    const isReviewOption = input.value !== "new";
+    const isReviewOption = input.value !== "new" && input.value !== "all";
     const optionAvailable = input.value === "marked" ? hasMarkedQuestions : hasLastSession;
     input.disabled = isReviewOption && !optionAvailable;
+    if (input.disabled) input.checked = false;
     input.closest(".revisit-option").classList.toggle("disabled", isReviewOption && !optionAvailable);
   });
-  if (getReuseMode() === "marked" && !hasMarkedQuestions || getReuseMode() !== "marked" && getReuseMode() !== "new" && !hasLastSession) {
-    document.querySelector('input[name="reuseMode"][value="new"]').checked = true;
-  }
   revisitNote.textContent = hasLastSession
-    ? "Fresh quizzes skip every previously answered MCQ. Review modes reuse the latest quiz’s missed questions; marked mode uses your saved question notes."
+    ? "Select one or more pools. Missed questions come from your latest quiz. All selected MCQs includes the full selected-topic pool. Overlapping questions appear only once."
     : hasMarkedQuestions ? "Marked questions are ready to review. Finish a quiz to unlock wrong/unknown review." : "Complete a quiz or mark a question first to unlock review options.";
   updateRevisitCards();
 }
@@ -464,9 +454,14 @@ function updateBuilderSummary() {
     summary.textContent = "Select one or more topics to generate your quiz.";
     return;
   }
+  if (!getReuseModes().size) {
+    generateButton.disabled = true;
+    summary.textContent = "Choose at least one practice pool below.";
+    return;
+  }
   if (eligibleQuestions.length === 0) {
     generateButton.disabled = true;
-    summary.textContent = getReuseMode() === "new"
+    summary.textContent = getReuseModes().size === 1 && getReuseModes().has("new")
       ? "No question variants are available for these topics yet."
       : "No matching questions were found in the latest quiz. Choose a different retry option or topic.";
     return;
@@ -477,7 +472,7 @@ function updateBuilderSummary() {
     return;
   }
   generateButton.disabled = false;
-    summary.textContent = requestedCount + " unique, not-yet-answered MCQs ready from " + topicCount + " selected topic" + (topicCount === 1 ? "" : "s") + ". No question repeats within or across fresh quizzes.";
+    summary.textContent = requestedCount + " MCQs from " + eligibleQuestions.length + " unique matching questions across " + topicCount + " selected topic" + (topicCount === 1 ? "" : "s") + ". No duplicates within this quiz.";
 }
 
 function renderLibrary() {
@@ -1097,31 +1092,50 @@ document.addEventListener("keydown", function(event) {
   }
 });
 
+const drawerMedia = window.matchMedia("(max-width: 900px), (max-width: 950px) and (max-height: 500px), (max-width: 1366px) and (pointer: coarse)");
+
+function showFirstMobileNavigation() {
+  if (!drawerMedia.matches || !window.matchMedia("(pointer: coarse)").matches) return;
+  try {
+    if (localStorage.getItem("medrecall-navigation-introduced-v1")) return;
+    localStorage.setItem("medrecall-navigation-introduced-v1", "1");
+    openSidebar(false);
+  } catch (error) { /* Optional introduction must not affect study storage. */ }
+}
+drawerMedia.addEventListener("change", function() { closeSidebar(); });
+
 (function enableDrawerGestures() {
   const sidebar = document.getElementById("sidebar");
   const backdrop = document.getElementById("sidebarBackdrop");
-  const mobileDrawer = window.matchMedia("(max-width: 900px), (max-width: 950px) and (max-height: 500px)");
   let gesture = null;
-  document.addEventListener("pointerdown", function(event) {
-    if (!mobileDrawer.matches || event.pointerType === "mouse" || !event.isPrimary) return;
+  let suppressClickUntil = 0;
+  document.addEventListener("touchstart", function(event) {
+    if (!drawerMedia.matches || event.touches.length !== 1 || document.querySelector("dialog[open]")) { gesture = null; return; }
+    const point = event.touches[0];
     const open = sidebar.classList.contains("open");
-    if (!open && event.clientX > 28) return;
-    if (open && event.clientX > sidebar.offsetWidth) return;
-    gesture = { id: event.pointerId, startX: event.clientX, startY: event.clientY, open: open, dragging: false };
+    const edge = Math.max(32, parseFloat(getComputedStyle(sidebar).paddingLeft) + 16);
+    if (!open && point.clientX > edge) return;
+    if (open && !sidebar.contains(event.target)) return;
+    if (event.target.closest("input, textarea, select")) return;
+    gesture = { id: point.identifier, startX: point.clientX, startY: point.clientY, x: point.clientX, open: open, dragging: false };
   }, { passive: true });
-  document.addEventListener("pointermove", function(event) {
-    if (!gesture || event.pointerId !== gesture.id) return;
-    const dx = event.clientX - gesture.startX;
-    const dy = event.clientY - gesture.startY;
+  document.addEventListener("touchmove", function(event) {
+    if (!gesture) return;
+    if (event.touches.length !== 1) { cancelGesture(); return; }
+    const point = event.touches[0];
+    if (point.identifier !== gesture.id) return;
+    const dx = point.clientX - gesture.startX;
+    const dy = point.clientY - gesture.startY;
+    gesture.x = point.clientX;
     if (!gesture.dragging) {
-      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { gesture = null; return; }
-      const intendedDirection = gesture.open ? dx < -12 : dx > 12;
+      if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)) { gesture = null; return; }
+      const intendedDirection = gesture.open ? dx < -8 : dx > 8;
       if (!intendedDirection || Math.abs(dx) < Math.abs(dy) * 1.35) return;
       gesture.dragging = true;
       sidebar.classList.add("dragging");
       backdrop.hidden = false;
     }
-    event.preventDefault();
+    if (event.cancelable) event.preventDefault();
     const width = sidebar.getBoundingClientRect().width;
     const offset = gesture.open ? Math.max(-width, Math.min(0, dx)) : Math.min(0, Math.max(-width, -width + dx));
     const openness = 1 + offset / width;
@@ -1129,22 +1143,27 @@ document.addEventListener("keydown", function(event) {
     backdrop.style.opacity = String(Math.max(0, Math.min(1, openness)));
   }, { passive: false });
   function finishGesture(event) {
-    if (!gesture || event.pointerId !== gesture.id) return;
+    if (!gesture || !Array.from(event.changedTouches).some(function(point) { return point.identifier === gesture.id; })) return;
     if (!gesture.dragging) { gesture = null; return; }
-    const dx = event.clientX - gesture.startX;
-    const shouldOpen = gesture.open ? dx > -72 : dx > 72;
+    const dx = gesture.x - gesture.startX;
+    const shouldOpen = gesture.open ? dx > -60 : dx > 60;
     gesture = null;
+    suppressClickUntil = Date.now() + 400;
     if (shouldOpen) openSidebar(false);
     else closeSidebar();
   }
-  document.addEventListener("pointerup", finishGesture, { passive: true });
-  document.addEventListener("pointercancel", function(event) {
-    if (!gesture || event.pointerId !== gesture.id) return;
+  document.addEventListener("touchend", finishGesture, { passive: true });
+  function cancelGesture() {
+    if (!gesture) return;
     const wasOpen = gesture.open;
     gesture = null;
     if (wasOpen) openSidebar(false);
     else closeSidebar();
-  }, { passive: true });
+  }
+  document.addEventListener("touchcancel", cancelGesture, { passive: true });
+  document.addEventListener("click", function(event) {
+    if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopPropagation(); }
+  }, true);
 })();
 
 function buildQuestionReport() {
@@ -1230,6 +1249,16 @@ document.querySelectorAll("#timerHours, #timerMinutes").forEach(function(input) 
   });
 });
 document.getElementById("questionCount").addEventListener("input", updateBuilderSummary);
+document.getElementById("selectAllPractice").addEventListener("click", function() {
+  document.querySelectorAll('input[name="reuseMode"]').forEach(function(input) { input.checked = !input.disabled; });
+  updateRevisitCards();
+  updateBuilderSummary();
+});
+document.getElementById("clearPractice").addEventListener("click", function() {
+  document.querySelectorAll('input[name="reuseMode"]').forEach(function(input) { input.checked = false; });
+  updateRevisitCards();
+  updateBuilderSummary();
+});
 document.querySelectorAll('input[name="reuseMode"]').forEach(function(input) {
   input.addEventListener("change", function() {
     updateRevisitCards();
@@ -1366,6 +1395,7 @@ async function initializeProgress() {
     progressReady = true;
     refreshProgressViews();
     restoreActiveQuiz();
+    showFirstMobileNavigation();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function() {});
   } catch (error) {
     progressError = error;
