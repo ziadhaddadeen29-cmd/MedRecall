@@ -3,6 +3,17 @@
 globalThis.MedRecallRelease = {
   history: [
     {
+      version: "1.1.1",
+      date: "2026-09-23",
+      title: "Quiz answer controls",
+      changes: [
+        "Change your selected answer before checking it in Recall or Exam mode.",
+        "Only the checked answer counts as an attempt; Exam selections stay neutral.",
+        "Reveal or hide the explanation after checking an answer in Recall mode.",
+        "The MedRecall splash now remains visible for at least 2.5 seconds."
+      ]
+    },
+    {
       version: "1.1.0",
       date: "2026-09-23",
       title: "A smoother study experience",
