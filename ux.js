@@ -1,6 +1,11 @@
 /* Presentation preferences are intentionally separate from academic progress. */
 (function() {
   "use strict";
+  // Start from a paint opportunity, not navigation/network time.
+  const minimumSplash = new Promise(function(resolve) {
+    requestAnimationFrame(function() { setTimeout(resolve, 1500); });
+  });
+  let finishingSplash = false;
   let enabled = true;
   try { enabled = localStorage.getItem("medrecall-sound-enabled") !== "false"; } catch (_) {}
   let context = null;
@@ -69,6 +74,50 @@
   renderSound();
   window.MedRecallSound = { play: play };
 
+  const updateButton = document.getElementById("whatsNewButton");
+  const updateDialog = document.getElementById("whatsNewDialog");
+  const seenKey = "medrecall-last-seen-version";
+  let lastSeen = null;
+  try { lastSeen = localStorage.getItem(seenKey); } catch (_) {}
+  function renderUnread() {
+    const unread = lastSeen !== MedRecallRelease.version;
+    document.getElementById("updateBadge").hidden = !unread;
+    updateButton.setAttribute("aria-label", unread ? "What's New — unread release" : "What's New");
+  }
+  function releaseCard(release) {
+    const article = document.createElement("article");
+    const heading = document.createElement("h3");
+    heading.textContent = "MedRecall v" + release.version + " · " + release.title;
+    article.appendChild(heading);
+    if (release.date) {
+      const date = document.createElement("time");
+      date.dateTime = release.date; date.textContent = release.date; article.appendChild(date);
+    }
+    if (release.description) {
+      const description = document.createElement("p");
+      description.textContent = release.description; article.appendChild(description);
+    }
+    const list = document.createElement("ul");
+    release.changes.forEach(function(change) { const item = document.createElement("li"); item.textContent = change; list.appendChild(item); });
+    article.appendChild(list); return article;
+  }
+  document.getElementById("currentRelease").appendChild(releaseCard(MedRecallRelease.history[0]));
+  MedRecallRelease.history.slice(1).forEach(function(release) { document.getElementById("olderReleases").appendChild(releaseCard(release)); });
+  document.getElementById("releaseHistory").hidden = MedRecallRelease.history.length < 2;
+  updateButton.addEventListener("click", function() {
+    updateDialog.showModal();
+    lastSeen = MedRecallRelease.version;
+    try { localStorage.setItem(seenKey, lastSeen); } catch (_) {}
+    renderUnread();
+  });
+  document.getElementById("closeWhatsNew").addEventListener("click", function() { updateDialog.close(); });
+  updateDialog.addEventListener("click", function(event) {
+    const rect = updateDialog.getBoundingClientRect();
+    if (event.target === updateDialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom)) updateDialog.close();
+  });
+  // One latest-release dot, not a backlog or an interrupting onboarding modal.
+  renderUnread();
+
   const progressTools = document.querySelector(".progress-tools");
   document.getElementById("overviewProgressTools").appendChild(progressTools);
   const guides = {
@@ -114,7 +163,10 @@
   renderInstall();
 
   window.MedRecallUX = {
-    finishLoading: function() {
+    finishLoading: async function() {
+      if (finishingSplash) return;
+      finishingSplash = true;
+      await minimumSplash;
       const splash = document.getElementById("appSplash");
       if (!splash) return;
       splash.classList.add("leaving");

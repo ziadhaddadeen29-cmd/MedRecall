@@ -404,6 +404,28 @@ html, body { background: var(--paper); }
 .app-splash small { position: absolute; bottom: max(25px, env(safe-area-inset-bottom)); left: 24px; right: 24px; color: #89a7aa; font-size: 12px; }
 .splash-line { display: block; margin: 24px auto 0; width: 120px; height: 3px; border-radius: 5px; background: #9be8dd; animation: splash-pulse 1s ease-in-out infinite alternate; }
 .app-splash.leaving { opacity: 0; pointer-events: none; }
+.audience-branding { color: #9ac5c5; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.app-splash .audience-branding { max-width: 320px; margin: 22px auto 0; font-size: 13px; }
+.updates-button { position: relative; display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid #31525d; border-radius: 12px; color: #a8ece1; background: #102b35; }
+.update-badge { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #a8ece1; box-shadow: 0 0 0 3px #102b35; }
+.updates-dialog { margin: 76px max(20px, env(safe-area-inset-right)) auto auto; width: min(470px, calc(100vw - 28px)); }
+.updates-dialog article { overflow-wrap: anywhere; }
+.updates-dialog h3 { font-size: 17px; line-height: 1.5; margin: 20px 0 7px; }
+.updates-dialog time { color: #8faeb0; font-size: 12px; }
+.updates-dialog p, .updates-dialog li { font-size: 14px; line-height: 1.6; color: #b8cecf; }
+.updates-dialog ul { padding-left: 21px; }
+.updates-dialog li + li { margin-top: 8px; }
+.updates-dialog summary { padding: 13px 0; min-height: 44px; cursor: pointer; color: #a8ece1; }
+@media (max-width: 600px) {
+  .updates-dialog { margin: auto auto max(10px, env(safe-area-inset-bottom)); max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+}
+@media (max-height: 450px) {
+  .app-splash img { width: 40px; height: 40px; }
+  .app-splash h1 { margin: 6px 0; font-size: 32px; }
+  .app-splash .audience-branding { margin-top: 10px; }
+  .app-splash small { bottom: max(10px, env(safe-area-inset-bottom)); }
+  .updates-dialog { margin-top: max(10px, env(safe-area-inset-top)); }
+}
 @keyframes splash-pulse { from { opacity: .25; transform: scaleX(.5); } to { opacity: 1; transform: scaleX(1); } }
 .install-guide { margin-top: 22px; padding: clamp(17px, 3vw, 26px); border: 1px solid #234450; border-radius: 15px; background: #0e2631; }
 .install-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }

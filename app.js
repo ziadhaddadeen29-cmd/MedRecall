@@ -62,7 +62,7 @@ const subjects = [
 ];
 
 const builtInQuestionBank = Array.isArray(window.MEDRECALL_QUESTION_BANK) ? window.MEDRECALL_QUESTION_BANK : [];
-const APP_VERSION = "1.0";
+const APP_VERSION = MedRecallRelease.version;
 const WHATSAPP_NUMBER = "962779809947";
 let questionBank = builtInQuestionBank.slice();
 const importedQuestionBankKey = "medrecall-imported-question-bank";
@@ -1471,7 +1471,7 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
     wasControlled = true;
     MedRecallUX.checkOffline(navigator.serviceWorker.controller);
   });
-  navigator.serviceWorker.register("service-worker.js").then(function(registration) {
+  navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).then(function(registration) {
     registration.update().catch(function() {});
     return navigator.serviceWorker.ready;
   }).then(function(registration) {
