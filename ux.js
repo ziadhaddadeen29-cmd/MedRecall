@@ -64,7 +64,7 @@
   });
   document.addEventListener("click", function(event) {
     const button = event.target.closest("button, summary");
-    if (!button || button.disabled || button.id === "soundToggle" || button.matches("[data-answer], #dontKnowButton, #nextButton")) return;
+    if (!button || button.disabled || button.id === "soundToggle" || button.matches("[data-answer], #submitAnswerButton, #dontKnowButton, #nextButton")) return;
     play(button.matches(".nav-item, #menuButton, #sidebarClose, #sidebarBackdrop") ? "navigation" : "click");
   }, true);
   document.addEventListener("change", function(event) { if (event.target.matches('input[type="checkbox"], input[type="radio"], select')) play("select"); });

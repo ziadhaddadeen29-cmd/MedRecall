@@ -293,6 +293,10 @@
             <h1 id="questionText">Question text</h1>
             <div class="answer-list" id="answerList"></div>
             <div class="feedback-box" id="feedbackBox"></div>
+            <div class="explanation-control" id="explanationControl" hidden>
+              <button type="button" id="revealExplanation" aria-expanded="false" aria-controls="questionExplanation">Reveal explanation</button>
+              <div id="questionExplanation" class="question-explanation" hidden></div>
+            </div>
             <div class="quiz-next-row">
               <div class="quiz-help">
                 <button class="dont-know-button" id="dontKnowButton" type="button">I don't know</button>
@@ -301,6 +305,7 @@
               </div>
               <div class="quiz-actions">
                 <button class="mark-question-button" id="markQuestionButton" type="button" aria-pressed="false">☆ Mark + note</button>
+                <button class="next-button" id="submitAnswerButton" type="button" disabled>Check answer</button>
                 <button class="next-button" id="nextButton" disabled>Next question <span>→</span></button>
               </div>
             </div>

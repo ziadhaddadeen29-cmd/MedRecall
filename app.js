@@ -78,6 +78,8 @@ let progressState = null;
 let progressReady = false;
 let progressError = null;
 let questionAdvanceLocked = false;
+let pendingAnswer = null;
+let explanationOpen = false;
 
 const sourceList = document.getElementById("sourceList");
 const sourceLibraryList = document.getElementById("sourceLibraryList");
@@ -204,6 +206,8 @@ function restoreActiveQuiz() {
     startedAt: saved.startedAt, questions: questions, answers: saved.answers.slice(), index: saved.index
   };
   reviewOnly = false;
+  pendingAnswer = null;
+  explanationOpen = false;
   if (currentQuiz.timerEnabled && currentQuiz.secondsLeft <= 0) {
     finishQuiz();
     return;
@@ -604,6 +608,8 @@ function startQuiz() {
   saveActiveQuiz();
   captureBuilderSettings();
   reviewOnly = false;
+  pendingAnswer = null;
+  explanationOpen = false;
   setView("quiz");
   document.getElementById("quizNameTop").textContent = name;
   document.getElementById("quizTimer").style.visibility = timerEnabled ? "visible" : "hidden";
@@ -641,7 +647,7 @@ function renderQuestion() {
   document.getElementById("quizProgress").style.width = ((currentQuiz.index + 1) / currentQuiz.questions.length * 100) + "%";
   document.getElementById("quizTopic").textContent = subject.title.toUpperCase();
   document.getElementById("questionText").textContent = question.text;
-  document.getElementById("keyboardHint").textContent = reviewOnly ? "Review the correct answer and rationale" : "Choose the best answer";
+  document.getElementById("keyboardHint").textContent = reviewOnly ? "Review the correct answer and rationale" : chosen === null ? "Choose, then check your answer" : "Answer checked";
   document.getElementById("nextButton").textContent = currentQuiz.index === currentQuiz.questions.length - 1 ? (reviewOnly ? "Back to results" : "Finish quiz →") : (reviewOnly ? "Next answer →" : "Next question →");
   const answerLetters = ["A", "B", "C", "D"];
   const shouldShowAnswerStates = reviewOnly || currentQuiz.mode === "recall";
@@ -655,12 +661,14 @@ function renderQuestion() {
       } else if (index === chosen) {
         className += " selected";
       }
+    } else if (!reviewOnly && chosen === null && index === pendingAnswer) {
+      className += " selected";
     }
     const disabled = chosen !== null || reviewOnly ? "disabled" : "";
-    const explanation = isWrongSelection && shouldShowAnswerStates
+    const explanation = isWrongSelection && reviewOnly
       ? '<span class="answer-explanation"><b>Why?</b> ' + escapeHtml(question.explanation) + '</span>'
       : "";
-    return '<button type="button" class="' + className + '" data-answer="' + index + '" ' + disabled + '><span class="answer-letter">' + answerLetters[index] + '</span><span class="answer-text">' + escapeHtml(answer) + '</span>' + explanation + '</button>';
+    return '<button type="button" class="' + className + '" data-answer="' + index + '" aria-pressed="' + String(!reviewOnly && chosen === null && index === pendingAnswer) + '" ' + disabled + '><span class="answer-letter">' + answerLetters[index] + '</span><span class="answer-text">' + escapeHtml(answer) + '</span>' + explanation + '</button>';
   }).join("") + (chosen === "unknown" ? '<div class="unknown-answer-status">Marked as “I don’t know”. No explanation is shown for this question.</div>' : "");
 
   document.querySelectorAll("[data-answer]").forEach(function(button) {
@@ -678,12 +686,38 @@ function renderQuestion() {
   const dontKnowButton = document.getElementById("dontKnowButton");
   dontKnowButton.disabled = chosen !== null || reviewOnly;
   dontKnowButton.textContent = chosen === "unknown" ? "Marked: I don't know" : "I don't know";
+  const submitButton = document.getElementById("submitAnswerButton");
+  submitButton.hidden = reviewOnly || chosen !== null;
+  submitButton.disabled = pendingAnswer === null;
   document.getElementById("nextButton").disabled = chosen === null && !reviewOnly;
+  const explanationControl = document.getElementById("explanationControl");
+  explanationControl.hidden = currentQuiz.mode !== "recall" || reviewOnly || chosen === null || chosen === "unknown";
+  const revealButton = document.getElementById("revealExplanation");
+  revealButton.textContent = explanationOpen ? "Hide explanation" : "Reveal explanation";
+  revealButton.setAttribute("aria-expanded", String(explanationOpen));
+  const explanation = document.getElementById("questionExplanation");
+  explanation.textContent = question.explanation;
+  explanation.hidden = !explanationOpen || explanationControl.hidden;
   renderQuestionNoteEditor();
 }
 
 function chooseAnswer(answerIndex) {
-  if (currentQuiz.answers[currentQuiz.index] !== null || reviewOnly) return;
+  if (!currentQuiz || currentQuiz.answers[currentQuiz.index] !== null || reviewOnly) return;
+  pendingAnswer = answerIndex;
+  document.querySelectorAll("[data-answer]").forEach(function(button) {
+    const selected = Number(button.dataset.answer) === answerIndex;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  document.getElementById("submitAnswerButton").disabled = false;
+  MedRecallSound.play("select");
+}
+
+function submitAnswer() {
+  if (!currentQuiz || reviewOnly || pendingAnswer === null || currentQuiz.answers[currentQuiz.index] !== null) return;
+  const answerIndex = pendingAnswer;
+  pendingAnswer = null;
+  explanationOpen = false;
   currentQuiz.answers[currentQuiz.index] = answerIndex;
   const question = currentQuiz.questions[currentQuiz.index];
   rememberAnsweredQuestion(question, answerIndex === question.correct ? "correct" : "wrong");
@@ -693,7 +727,9 @@ function chooseAnswer(answerIndex) {
 }
 
 function chooseUnknown() {
-  if (currentQuiz.answers[currentQuiz.index] !== null || reviewOnly) return;
+  if (!currentQuiz || currentQuiz.answers[currentQuiz.index] !== null || reviewOnly) return;
+  pendingAnswer = null;
+  explanationOpen = false;
   currentQuiz.answers[currentQuiz.index] = "unknown";
   rememberAnsweredQuestion(currentQuiz.questions[currentQuiz.index], "unknown");
   saveActiveQuiz();
@@ -729,11 +765,13 @@ function buildTopicBreakdown() {
 }
 
 function goToNextQuestion() {
-  if (!currentQuiz || questionAdvanceLocked) return;
+  if (!currentQuiz || questionAdvanceLocked || (!reviewOnly && currentQuiz.answers[currentQuiz.index] === null)) return;
   questionAdvanceLocked = true;
   if (currentQuiz.index < currentQuiz.questions.length - 1) {
     MedRecallSound.play("click");
     currentQuiz.index += 1;
+    pendingAnswer = null;
+    explanationOpen = false;
     saveActiveQuiz();
     renderQuestion();
     document.getElementById("nextButton").disabled = true;
@@ -1254,6 +1292,15 @@ document.getElementById("quizBuilder").addEventListener("submit", function(event
   startQuiz();
 });
 document.getElementById("nextButton").addEventListener("click", goToNextQuestion);
+document.getElementById("submitAnswerButton").addEventListener("click", submitAnswer);
+document.getElementById("revealExplanation").addEventListener("click", function() {
+  if (!currentQuiz || currentQuiz.mode !== "recall" || reviewOnly || currentQuiz.answers[currentQuiz.index] === null || currentQuiz.answers[currentQuiz.index] === "unknown") return;
+  explanationOpen = !explanationOpen;
+  const button = document.getElementById("revealExplanation");
+  button.textContent = explanationOpen ? "Hide explanation" : "Reveal explanation";
+  button.setAttribute("aria-expanded", String(explanationOpen));
+  document.getElementById("questionExplanation").hidden = !explanationOpen;
+});
 document.getElementById("dontKnowButton").addEventListener("click", chooseUnknown);
 document.getElementById("markQuestionButton").addEventListener("click", toggleQuestionMark);
 document.getElementById("saveQuestionNote").addEventListener("click", saveCurrentQuestionNote);
@@ -1277,6 +1324,8 @@ document.getElementById("reviewQuiz").addEventListener("click", function() {
   if (!currentQuiz) return;
   reviewOnly = true;
   currentQuiz.index = 0;
+  pendingAnswer = null;
+  explanationOpen = false;
   setView("quiz");
   document.getElementById("quizTimer").style.visibility = "hidden";
   renderQuestion();
