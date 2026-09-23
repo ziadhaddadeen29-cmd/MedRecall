@@ -346,6 +346,9 @@ html, body { background: var(--paper); }
     transition: transform .27s ease;
   }
   .sidebar.open { left: 0; transform: translateX(0); }
+  html[dir="rtl"] .sidebar { left: auto; right: 0; transform: translateX(100%); padding-right: max(17px, env(safe-area-inset-right)); }
+  html[dir="rtl"] .sidebar.open { left: auto; transform: translateX(0); }
+  html[dir="rtl"] .sidebar-close { right: auto; left: max(8px, env(safe-area-inset-left)); }
   .sidebar-close { display: grid; place-items: center; position: absolute; top: calc(11px + env(safe-area-inset-top)); right: 8px; border: 0; color: #dcebea; background: transparent; font-size: 29px; }
   .sidebar-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 19; width: 100%; border: 0; background: rgba(2, 12, 18, .7); }
   .side-nav { margin-top: 35px; }

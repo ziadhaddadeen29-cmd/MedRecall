@@ -1,6 +1,6 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
 importScripts("./releases.js");
-const CACHE_NAME = "medrecall-offline-486bbba0e0af";
+const CACHE_NAME = "medrecall-offline-626b037bad1a";
 const CACHE_PREFIX = "medrecall-offline-";
 const RELEASE_CACHE = CACHE_NAME + "-" + MedRecallRelease.version;
 const APP_FILES = [

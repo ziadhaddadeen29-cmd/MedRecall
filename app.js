@@ -1169,18 +1169,21 @@ drawerMedia.addEventListener("change", function() { closeSidebar(); });
     if (!drawerMedia.matches || event.touches.length !== 1 || document.querySelector("dialog[open]")) { gesture = null; return; }
     const point = event.touches[0];
     const open = sidebar.classList.contains("open");
-    const edge = Math.max(32, parseFloat(getComputedStyle(sidebar).paddingLeft) + 16);
-    if (!open && point.clientX > edge) return;
+    const direction = getComputedStyle(document.documentElement).direction === "rtl" ? -1 : 1;
+    const padding = getComputedStyle(sidebar)[direction === -1 ? "paddingRight" : "paddingLeft"];
+    const edge = Math.max(32, parseFloat(padding) + 16);
+    const edgeDistance = direction === -1 ? document.documentElement.clientWidth - point.clientX : point.clientX;
+    if (!open && edgeDistance > edge) return;
     if (open && !sidebar.contains(event.target)) return;
     if (event.target.closest("input, textarea, select")) return;
-    gesture = { id: point.identifier, startX: point.clientX, startY: point.clientY, x: point.clientX, open: open, dragging: false };
+    gesture = { id: point.identifier, startX: point.clientX, startY: point.clientY, x: point.clientX, open: open, dragging: false, direction: direction };
   }, { passive: true });
   document.addEventListener("touchmove", function(event) {
     if (!gesture) return;
     if (event.touches.length !== 1) { cancelGesture(); return; }
     const point = event.touches[0];
     if (point.identifier !== gesture.id) return;
-    const dx = point.clientX - gesture.startX;
+    const dx = (point.clientX - gesture.startX) * gesture.direction;
     const dy = point.clientY - gesture.startY;
     gesture.x = point.clientX;
     if (!gesture.dragging) {
@@ -1195,13 +1198,13 @@ drawerMedia.addEventListener("change", function() { closeSidebar(); });
     const width = sidebar.getBoundingClientRect().width;
     const offset = gesture.open ? Math.max(-width, Math.min(0, dx)) : Math.min(0, Math.max(-width, -width + dx));
     const openness = 1 + offset / width;
-    sidebar.style.transform = "translateX(" + offset + "px)";
+    sidebar.style.transform = "translateX(" + (offset * gesture.direction) + "px)";
     backdrop.style.opacity = String(Math.max(0, Math.min(1, openness)));
   }, { passive: false });
   function finishGesture(event) {
     if (!gesture || !Array.from(event.changedTouches).some(function(point) { return point.identifier === gesture.id; })) return;
     if (!gesture.dragging) { gesture = null; return; }
-    const dx = gesture.x - gesture.startX;
+    const dx = (gesture.x - gesture.startX) * gesture.direction;
     const shouldOpen = gesture.open ? dx > -60 : dx > 60;
     gesture = null;
     suppressClickUntil = Date.now() + 400;
@@ -1217,6 +1220,7 @@ drawerMedia.addEventListener("change", function() { closeSidebar(); });
     else closeSidebar();
   }
   document.addEventListener("touchcancel", cancelGesture, { passive: true });
+  new MutationObserver(cancelGesture).observe(document.documentElement, { attributes: true, attributeFilter: ["dir", "lang"] });
   document.addEventListener("click", function(event) {
     if (Date.now() < suppressClickUntil) { event.preventDefault(); event.stopPropagation(); }
   }, true);
