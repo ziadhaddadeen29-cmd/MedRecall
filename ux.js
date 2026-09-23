@@ -3,7 +3,7 @@
   "use strict";
   // Start from a paint opportunity, not navigation/network time.
   const minimumSplash = new Promise(function(resolve) {
-    requestAnimationFrame(function() { setTimeout(resolve, 1500); });
+    requestAnimationFrame(function() { setTimeout(resolve, 2500); });
   });
   let finishingSplash = false;
   let enabled = true;
