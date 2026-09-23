@@ -559,30 +559,7 @@ function updateTimerSettingLabel() {
 }
 
 function playAnswerSound(type) {
-  try {
-    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextConstructor) return;
-    const context = new AudioContextConstructor();
-    const now = context.currentTime;
-    const notes = type === "perfect" ? [523.25, 659.25, 783.99] : type === "correct" ? [587.33, 783.99] : [311.13];
-    notes.forEach(function(frequency, index) {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const start = now + index * 0.105;
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(frequency, start);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(type === "wrong" ? 0.025 : 0.035, start + 0.018);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start(start);
-      oscillator.stop(start + 0.18);
-    });
-    window.setTimeout(function() { context.close(); }, 650);
-  } catch (error) {
-    // Sound is an optional enhancement; quiz interaction remains available if audio is blocked.
-  }
+  MedRecallSound.play(type);
 }
 
 function startQuiz() {
@@ -711,7 +688,7 @@ function chooseAnswer(answerIndex) {
   const question = currentQuiz.questions[currentQuiz.index];
   rememberAnsweredQuestion(question, answerIndex === question.correct ? "correct" : "wrong");
   saveActiveQuiz();
-  playAnswerSound(answerIndex === question.correct ? "correct" : "wrong");
+  playAnswerSound(currentQuiz.mode === "exam" ? "select" : answerIndex === question.correct ? "correct" : "wrong");
   renderQuestion();
 }
 
@@ -720,6 +697,7 @@ function chooseUnknown() {
   currentQuiz.answers[currentQuiz.index] = "unknown";
   rememberAnsweredQuestion(currentQuiz.questions[currentQuiz.index], "unknown");
   saveActiveQuiz();
+  MedRecallSound.play("unknown");
   renderQuestion();
 }
 
@@ -754,6 +732,7 @@ function goToNextQuestion() {
   if (!currentQuiz || questionAdvanceLocked) return;
   questionAdvanceLocked = true;
   if (currentQuiz.index < currentQuiz.questions.length - 1) {
+    MedRecallSound.play("click");
     currentQuiz.index += 1;
     saveActiveQuiz();
     renderQuestion();
@@ -776,7 +755,9 @@ function finishQuiz() {
   clearInterval(timerInterval);
   const correct = getCorrectCount();
   const total = currentQuiz.questions.length;
-  if (correct === total) playAnswerSound("perfect");
+  const perfect = total > 0 && correct === total;
+  playAnswerSound(perfect ? "perfect" : "complete");
+  document.querySelector(".results-card").classList.toggle("perfect-score", perfect);
   const percent = Math.round(correct / total * 100);
   const elapsed = currentQuiz.timerEnabled ? currentQuiz.durationSeconds - Math.max(currentQuiz.secondsLeft, 0) : Math.round((Date.now() - currentQuiz.startedAt) / 1000);
   const date = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
@@ -1035,7 +1016,7 @@ function renderOverviewPerformance() {
   });
 }
 
-document.querySelectorAll(".nav-item").forEach(function(button) {
+document.querySelectorAll(".nav-item[data-view]").forEach(function(button) {
   button.addEventListener("click", function() { setView(button.dataset.view); });
 });
 document.querySelectorAll("[data-go-create]").forEach(function(button) {
@@ -1463,19 +1444,6 @@ async function resetProgress() {
   }
 }
 
-let deferredInstallPrompt = null;
-window.addEventListener("beforeinstallprompt", function(event) {
-  event.preventDefault();
-  deferredInstallPrompt = event;
-});
-document.getElementById("installAppButton").addEventListener("click", async function() {
-  if (deferredInstallPrompt) {
-    await deferredInstallPrompt.prompt();
-    deferredInstallPrompt = null;
-  } else {
-    showToast("Use your browser menu to install MedRecall. On iPhone Safari, choose Share → Add to Home Screen.");
-  }
-});
 document.getElementById("exportProgressButton").addEventListener("click", exportProgress);
 document.getElementById("importProgressButton").addEventListener("click", function() { document.getElementById("progressImportFile").click(); });
 document.getElementById("progressImportFile").addEventListener("change", function(event) {
@@ -1492,23 +1460,22 @@ renderSourceList();
 renderLibrary();
 updateTimerSettingLabel();
 updateBuilderSummary();
-initializeProgress();
+initializeProgress().finally(function() { MedRecallUX.finishLoading(); });
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   let wasControlled = Boolean(navigator.serviceWorker.controller);
   navigator.serviceWorker.addEventListener("controllerchange", function() {
     if (wasControlled) {
-      document.getElementById("offlineStatus").textContent = "A MedRecall update is ready. Reload after your quiz to use it.";
+      document.getElementById("offlineStatus").dataset.updateNotice = " A MedRecall update is ready. Reload after your quiz to use it.";
     }
     wasControlled = true;
+    MedRecallUX.checkOffline(navigator.serviceWorker.controller);
   });
   navigator.serviceWorker.register("service-worker.js").then(function(registration) {
     registration.update().catch(function() {});
     return navigator.serviceWorker.ready;
-  }).then(function() {
-    if (!document.getElementById("offlineStatus").textContent.includes("update is ready")) {
-      document.getElementById("offlineStatus").textContent = "Offline files ready on this device.";
-    }
+  }).then(function(registration) {
+    MedRecallUX.checkOffline(registration.active);
   }).catch(function(error) {
     document.getElementById("offlineStatus").textContent = "Offline setup failed: " + error.message;
   });

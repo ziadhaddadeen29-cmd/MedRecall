@@ -396,6 +396,30 @@ html, body { background: var(--paper); }
 }
 
 /* v1.0 release polish */
+/* Lightweight initialization and installation guidance. */
+[hidden] { display: none !important; }
+.app-splash { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: max(28px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); background: #071720; color: #e8f4f2; text-align: center; transition: opacity .18s ease; }
+.app-splash h1 { margin: 18px 0 10px; font: 600 clamp(38px, 8vw, 62px)/1.2 "Playfair Display", serif; }
+.app-splash p { color: #96b5b6; font-size: 14px; }
+.app-splash small { position: absolute; bottom: max(25px, env(safe-area-inset-bottom)); left: 24px; right: 24px; color: #89a7aa; font-size: 12px; }
+.splash-line { display: block; margin: 24px auto 0; width: 120px; height: 3px; border-radius: 5px; background: #9be8dd; animation: splash-pulse 1s ease-in-out infinite alternate; }
+.app-splash.leaving { opacity: 0; pointer-events: none; }
+@keyframes splash-pulse { from { opacity: .25; transform: scaleX(.5); } to { opacity: 1; transform: scaleX(1); } }
+.install-guide { margin-top: 22px; padding: clamp(17px, 3vw, 26px); border: 1px solid #234450; border-radius: 15px; background: #0e2631; }
+.install-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.install-heading h2 { margin: 0; font: 600 25px "Playfair Display", serif; }
+.install-guide p { margin: 12px 0; font-size: 13px; line-height: 1.6; color: #abc2c5; }
+.install-status { padding: 7px 10px; border-radius: 15px; color: #a8ece1; background: #173b41; font-size: 12px; }
+.platform-guide { margin-top: 14px; padding: 15px; border: 1px solid #2b4853; border-radius: 10px; }
+.platform-guide h3 { margin: 0; font-size: 15px; }
+.platform-guide ol { margin: 10px 0 0; padding-left: 22px; color: #d5e5e4; font-size: 14px; line-height: 1.7; }
+.install-guide summary { min-height: 44px; display: list-item; align-content: center; cursor: pointer; color: #a8ece1; font-size: 13px; margin-top: 10px; }
+.install-guide .progress-tools { padding: 15px; }
+.install-guide .progress-tools strong { font-size: 15px; }
+.install-guide .progress-tools span { font-size: 12px; }
+.install-guide .outline-button { min-height: 44px; font-size: 12px; }
+.perfect-score .result-ring { animation: perfect-glow .7s ease-out 1; }
+@keyframes perfect-glow { 50% { box-shadow: 0 0 0 13px rgba(168,236,225,.15), 0 0 32px rgba(168,236,225,.2); } }
 .sidebar { padding-left: max(17px, env(safe-area-inset-left)); }
 .practice-selection-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .practice-selection-actions button { min-height: 44px; }

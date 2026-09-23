@@ -1,9 +1,9 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
-const CACHE_NAME = "medrecall-offline-a42c8ce33920";
+const CACHE_NAME = "medrecall-offline-142edbb5c7ba";
 const CACHE_PREFIX = "medrecall-offline-";
 const APP_FILES = [
   "./", "./index.html", "./styles.css", "./app.js", "./progress-store.js",
-  "./question-bank.js", "./manifest.webmanifest",
+  "./question-bank.js", "./manifest.webmanifest", "./ux.js",
   "./assets/medrecall-hero.png", "./assets/medrecall-logo.png",
   "./assets/icon-192.png", "./assets/icon-512.png", "./assets/apple-touch-icon.png",
   "./assets/fonts/dm-mono-400.woff2", "./assets/fonts/dm-mono-500.woff2",
@@ -49,4 +49,13 @@ self.addEventListener("fetch", function(event) {
       });
     })
   );
+});
+
+// Confirm the complete current offline bundle, not just worker registration.
+self.addEventListener("message", function(event) {
+  if (!event.data || event.data.type !== "CHECK_OFFLINE" || !event.ports[0]) return;
+  event.waitUntil(caches.open(CACHE_NAME).then(async function(cache) {
+    const responses = await Promise.all(APP_FILES.map(function(file) { return cache.match(file); }));
+    event.ports[0].postMessage({ offlineReady: responses.every(function(response) { return response && response.ok; }) });
+  }).catch(function() { event.ports[0].postMessage({ offlineReady: false }); }));
 });

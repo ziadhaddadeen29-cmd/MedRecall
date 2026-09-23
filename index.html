@@ -15,6 +15,10 @@
     <title>MedRecall - Study smarter</title>
   </head>
   <body>
+    <div class="app-splash" id="appSplash" role="status" aria-label="Loading MedRecall">
+      <div><img src="assets/medrecall-logo.png" alt="" width="72" height="72"><h1>MedRecall</h1><p>Preparing your study space…</p><span class="splash-line"></span></div>
+      <small>Made by your colleague Ziad Haddadeen</small>
+    </div>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Close menu">×</button>
@@ -33,6 +37,7 @@
         </nav>
 
         <div class="sidebar-spacer"></div>
+        <button type="button" class="nav-item" id="soundToggle" aria-pressed="true">Sound effects: On</button>
         <div class="profile-card">
           <div class="avatar">MA</div>
           <span><b>3rd year Student</b><small>Infectious diseases I</small></span>
@@ -64,6 +69,15 @@
             </div>
             <div class="hero-watermark">MR</div>
           </div>
+
+          <section class="install-guide" id="installGuide" aria-labelledby="installGuideTitle">
+            <div class="install-heading"><div><p class="eyebrow">STUDY ANYWHERE</p><h2 id="installGuideTitle">Install MedRecall</h2></div><span id="installationStatus" class="install-status">Installation help</span></div>
+            <p>Keep MedRecall on your Home Screen for quick, offline study.</p>
+            <div id="primaryInstallGuide"></div>
+            <details id="otherInstallGuides"><summary>Installation help for other devices</summary><div id="alternativeInstallGuides"></div></details>
+            <p>Open MedRecall online initially and wait for offline access to be ready. Then launch it from your Home Screen, even without a connection.</p>
+            <div id="overviewProgressTools"></div>
+          </section>
 
           <div class="section-heading row-heading">
             <div>
@@ -221,7 +235,7 @@
               <button class="outline-button" type="button" id="contactDeveloperButton">Contact Developer</button>
               <input id="progressImportFile" type="file" accept="application/json,.json" hidden>
             </div>
-            <p>On iPhone, use Safari’s Share menu → Add to Home Screen. Keep a backup when changing phones or browsers.</p>
+            <p>Your answers, notes, bookmarks, quiz history and statistics stay locally on this device. Export a backup occasionally—especially before changing phones or browsers, uninstalling the app, or clearing site data.</p>
           </div>
         </section>
 
@@ -329,6 +343,7 @@
     <footer class="app-credit">Made by Ziad Haddadeen</footer>
     <script src="question-bank.js"></script>
     <script src="progress-store.js"></script>
+    <script src="ux.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
