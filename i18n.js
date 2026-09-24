@@ -3,6 +3,7 @@
 (function() {
   'use strict';
   const ar = {
+    "A MedRecall update is ready.":"يتوفر تحديث لـ MedRecall.", "Update now":"التحديث الآن", "Update ready. It will apply after you finish this quiz.":"التحديث جاهز. سيُطبّق بعد إنهاء هذا الاختبار.", "Save your progress backup before updating; progress storage needs attention.":"صدّر نسخة احتياطية من تقدمك قبل التحديث؛ توجد مشكلة في حفظ التقدم.",
     "Overview":"نظرة عامة", "Create quiz":"إنشاء اختبار", "Analysis":"تحليل الأداء", "Marked & notes":"الأسئلة المحفوظة والملاحظات", "Source library":"مكتبة المصادر", "Quiz history":"سجل الاختبارات",
     "HOME":"الرئيسية", "OVERVIEW":"نظرة عامة", "QUIZ BUILDER":"إعداد الاختبار", "CREATE QUIZ":"إنشاء اختبار", "ANALYSIS":"تحليل الأداء", "TOPIC PERFORMANCE":"الأداء حسب الموضوع", "MARKED & NOTES":"المحفوظات والملاحظات", "REVIEW SHELF":"قائمة المراجعة", "SOURCE LIBRARY":"مكتبة المصادر", "QUIZ HISTORY":"سجل الاختبارات", "YOUR RESULTS":"نتائجك", "QUIZ SESSION":"جلسة الاختبار", "IN PROGRESS":"قيد التقدم", "QUIZ RESULTS":"نتائج الاختبار", "COMPLETE":"مكتمل",
     "ACTIVE LEARNING":"التعلّم النشط", "3rd year Student":"طالب بالفرقة الثالثة", "Built exclusively for AFM 3rd Year Students":"مصمم خصيصًا لطلاب الفرقة الثالثة بكلية طب الإسكندرية", "Made by your colleague Ziad Haddadeen":"إعداد زميلكم زياد حدادين", "Made by Ziad Haddadeen":"إعداد زياد حدادين", "Preparing your study space…":"جارٍ تجهيز مساحة الدراسة…", "Loading MedRecall":"جارٍ تحميل MedRecall",

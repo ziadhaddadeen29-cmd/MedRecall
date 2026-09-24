@@ -615,6 +615,7 @@ function setView(viewName) {
   if (viewName === "analysis") renderAnalysis();
   if (viewName === "notes") renderNotesPage();
   if (viewName === "create") updateBuilderSummary();
+  document.dispatchEvent(new Event("medrecall-view-change"));
 }
 
 function showToast(message) {
@@ -1894,22 +1895,118 @@ renderSourceList();
 renderLibrary();
 updateTimerSettingLabel();
 updateBuilderSummary();
-initializeProgress().finally(function() { MedRecallUX.finishLoading(); });
+initializeProgress().finally(function() {
+  MedRecallUX.finishLoading();
+  document.dispatchEvent(new Event("medrecall-view-change"));
+});
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  let wasControlled = Boolean(navigator.serviceWorker.controller);
-  navigator.serviceWorker.addEventListener("controllerchange", function() {
-    if (wasControlled) {
-      document.getElementById("offlineStatus").dataset.updateNotice = " A MedRecall update is ready. Reload after your quiz to use it.";
+  const runningBuild = document.querySelector('meta[name="medrecall-build"]')?.content;
+  const reloadKey = "medrecall-update-reload-build";
+  const notice = document.getElementById("appUpdateNotice");
+  const updateButton = document.getElementById("applyAppUpdate");
+  let registration = null;
+  let pendingBuild = null;
+  let checking = false;
+  let reloading = false;
+  let lastCheck = 0;
+  try { if (sessionStorage.getItem(reloadKey) === runningBuild) sessionStorage.removeItem(reloadKey); } catch (_) {}
+
+  function quizIsActive() {
+    return Boolean((currentQuiz && !currentQuiz.finished && !reviewOnly) || progressState?.activeQuiz);
+  }
+  function renderUpdate() {
+    notice.hidden = !pendingBuild;
+    document.getElementById("appUpdateText").textContent = quizIsActive()
+      ? "Update ready. It will apply after you finish this quiz."
+      : "A MedRecall update is ready.";
+    updateButton.disabled = quizIsActive() || !progressReady || reloading;
+  }
+  async function applyUpdate(manual) {
+    renderUpdate();
+    if (!pendingBuild || reloading || !progressReady || quizIsActive() || document.visibilityState !== "visible") return;
+    if (progressError) {
+      document.getElementById("appUpdateText").textContent = "Save your progress backup before updating; progress storage needs attention.";
+      return;
     }
-    wasControlled = true;
+    try {
+      // One automatic reload per target build, even if a deployment serves stale HTML.
+      // If session storage is blocked, offer the button instead of risking a loop.
+      if (!manual && sessionStorage.getItem(reloadKey) === pendingBuild) return;
+      sessionStorage.setItem(reloadKey, pendingBuild);
+    } catch (_) { if (!manual) return; }
+    reloading = true;
+    updateButton.disabled = true;
+    try {
+      await MedRecallProgress.flush();
+      if (quizIsActive() || document.visibilityState !== "visible") {
+        reloading = false;
+        try { sessionStorage.removeItem(reloadKey); } catch (_) {}
+        renderUpdate();
+        return;
+      }
+      location.reload();
+    } catch (_) {
+      reloading = false;
+      updateButton.disabled = false;
+      document.getElementById("appUpdateText").textContent = "Save your progress backup before updating; progress storage needs attention.";
+    }
+  }
+  function workerBuild(worker) {
+    return new Promise(function(resolve) {
+      if (!worker || !window.MessageChannel) { resolve(null); return; }
+      const channel = new MessageChannel();
+      const timeout = setTimeout(function() { channel.port1.close(); resolve(null); }, 3000);
+      channel.port1.onmessage = function(event) { clearTimeout(timeout); channel.port1.close(); resolve(event.data?.build || null); };
+      try { worker.postMessage({ type: "GET_BUILD" }, [channel.port2]); }
+      catch (_) { clearTimeout(timeout); channel.port1.close(); resolve(null); }
+    });
+  }
+  async function considerUpdate() {
+    const worker = navigator.serviceWorker.controller;
+    const build = await workerBuild(worker);
+    if (!build || !runningBuild || worker !== navigator.serviceWorker.controller) return;
+    pendingBuild = build === runningBuild ? null : build;
+    applyUpdate(false);
+  }
+  function watchInstall(worker) {
+    if (!worker) return;
+    worker.addEventListener("statechange", function() {
+      if (worker.state === "activated") considerUpdate();
+    });
+  }
+  async function checkForUpdate(force) {
+    if (!registration || checking || document.visibilityState !== "visible" || (!force && Date.now() - lastCheck < 60000)) return;
+    checking = true;
+    lastCheck = Date.now();
+    try {
+      await registration.update();
+      // New online HTML can arrive before its worker has finished precaching.
+      // Wait for that worker rather than reloading into the previous bundle.
+      if (!registration.installing && !registration.waiting) await considerUpdate();
+    } catch (_) { /* Offline use and an interrupted update must remain usable. */ }
+    finally { checking = false; }
+  }
+  updateButton.addEventListener("click", function() { applyUpdate(true); });
+  navigator.serviceWorker.addEventListener("controllerchange", function() {
     MedRecallUX.checkOffline(navigator.serviceWorker.controller);
+    considerUpdate();
   });
-  navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).then(function(registration) {
-    registration.update().catch(function() {});
+  window.addEventListener("online", function() { checkForUpdate(true); });
+  window.addEventListener("pageshow", function() { checkForUpdate(false); applyUpdate(false); });
+  document.addEventListener("visibilitychange", function() {
+    if (document.visibilityState === "visible") { checkForUpdate(false); applyUpdate(false); }
+  });
+  document.addEventListener("medrecall-view-change", function() { applyUpdate(false); checkForUpdate(false); });
+  // Keep a single registration path, including Safari's HTTP-cache bypass.
+  navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" }).then(function(result) {
+    registration = result;
+    registration.addEventListener("updatefound", function() { watchInstall(registration.installing); });
+    watchInstall(registration.installing);
+    checkForUpdate(true);
     return navigator.serviceWorker.ready;
-  }).then(function(registration) {
-    MedRecallUX.checkOffline(registration.active);
+  }).then(function(result) {
+    MedRecallUX.checkOffline(result.active);
   }).catch(function(error) {
     document.getElementById("offlineStatus").textContent = "Offline setup failed: " + error.message;
   });

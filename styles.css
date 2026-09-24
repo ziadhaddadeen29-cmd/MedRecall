@@ -24,6 +24,10 @@
 }
 
 * { box-sizing: border-box; }
+.app-update-notice { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; padding: 12px 15px; border: 1px solid var(--aqua-deep); border-radius: 10px; background: var(--cream); color: var(--ink); font-size: 13px; line-height: 1.5; }
+.app-update-notice[hidden] { display: none; }
+.app-update-notice span { flex: 1; min-width: 150px; overflow-wrap: anywhere; }
+.app-update-notice button { min-height: 44px; color: var(--ink); border: 1px solid var(--line); }
 html { min-height: 100%; background: var(--paper); }
 body { min-height: 100%; margin: 0; color: var(--ink); background: var(--paper); font-family: "Manrope", sans-serif; }
 button, input { font: inherit; }

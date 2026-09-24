@@ -1,17 +1,32 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
 importScripts("./releases.js");
-const CACHE_NAME = "medrecall-offline-6c706d5eaf8b-polish1";
+const CACHE_NAME = "medrecall-offline-b2815c29273ba3d3";
 const CACHE_PREFIX = "medrecall-offline-";
-const RELEASE_CACHE = CACHE_NAME + "-" + MedRecallRelease.version;
+const SCOPE_PATH = new URL(self.registration.scope).pathname;
+const SCOPE_SUFFIX = "-" + encodeURIComponent(SCOPE_PATH);
+const RELEASE_CACHE = CACHE_NAME + "-" + MedRecallRelease.version + SCOPE_SUFFIX;
 const APP_FILES = [
-  "./", "./index.html", "./styles.css", "./app.js", "./progress-store.js",
-  "./question-bank.js", "./exam-bank.js", "./manifest.webmanifest", "./ux.js", "./releases.js", "./i18n.js",
-  "./assets/study-doctor-male.jpg", "./assets/medrecall-logo.png",
-  "./assets/icon-192.png", "./assets/icon-512.png", "./assets/apple-touch-icon.png",
-  "./assets/fonts/dm-mono-400.woff2", "./assets/fonts/dm-mono-500.woff2",
+  "./",
+  "./app.js",
+  "./assets/apple-touch-icon.png",
+  "./assets/fonts/dm-mono-400.woff2",
+  "./assets/fonts/dm-mono-500.woff2",
   "./assets/fonts/manrope-400-800.woff2",
+  "./assets/fonts/playfair-italic-600-700.woff2",
   "./assets/fonts/playfair-normal-600-700.woff2",
-  "./assets/fonts/playfair-italic-600-700.woff2"
+  "./assets/icon-192.png",
+  "./assets/icon-512.png",
+  "./assets/medrecall-logo.png",
+  "./assets/study-doctor-male.jpg",
+  "./exam-bank.js",
+  "./i18n.js",
+  "./index.html",
+  "./manifest.webmanifest",
+  "./progress-store.js",
+  "./question-bank.js",
+  "./releases.js",
+  "./styles.css",
+  "./ux.js"
 ];
 // BEGIN EXAM_ASSETS — refreshed by scripts/build-offline-cache.js
 const EXAM_FILES = [
@@ -42,7 +57,7 @@ self.addEventListener("install", function(event) {
   event.waitUntil(
     caches.open(RELEASE_CACHE)
       .then(function(cache) {
-        return cache.addAll(REQUIRED_FILES.map(function(file) { return new Request(file, { cache: "reload" }); }));
+        return cache.addAll(REQUIRED_FILES.map(function(file) { return new Request(file, { cache: "no-store" }); }));
       })
       .then(function() { return self.skipWaiting(); })
   );
@@ -52,33 +67,54 @@ self.addEventListener("activate", function(event) {
   event.waitUntil(
     caches.keys()
       .then(function(names) {
-        return Promise.all(names.filter(function(name) {
-          return (name.startsWith(CACHE_PREFIX) || name.startsWith("medrecall-v")) && name !== RELEASE_CACHE;
-        }).map(function(name) { return caches.delete(name); }));
+        return Promise.all(names.map(async function(name) {
+          if (name === RELEASE_CACHE || !(name.startsWith(CACHE_PREFIX) || name.startsWith("medrecall-v"))) return;
+          // Cache Storage is shared by the origin. Leave other GitHub Pages apps alone.
+          const cache = await caches.open(name);
+          if (name.endsWith(SCOPE_SUFFIX) || await cache.match(new URL("./index.html", self.registration.scope).href)) return caches.delete(name);
+        }));
       })
       .then(function() { return self.clients.claim(); })
   );
 });
 
+const RUNTIME_PATHS = new Set(REQUIRED_FILES.map(file => new URL(file, self.registration.scope).pathname));
+const INDEX_URL = new URL("./index.html", self.registration.scope).href;
+
 self.addEventListener("fetch", function(event) {
   const request = event.request;
-  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(
-    caches.open(RELEASE_CACHE).then(function(cache) {
-      if (request.mode === "navigate") {
-        return cache.match("./index.html").then(function(response) {
-          return response || fetch(request);
-        });
-      }
-      return cache.match(request).then(function(response) {
-        return response || fetch(request);
-      });
-    })
-  );
+  const url = new URL(request.url);
+  if (request.method !== "GET" || url.origin !== self.location.origin || !RUNTIME_PATHS.has(url.pathname)) return;
+  const key = request.mode === "navigate" ? INDEX_URL : url.origin + url.pathname;
+  const cachePromise = caches.open(RELEASE_CACHE);
+  // Bypass the HTTP cache too: a fresh worker must not recache Safari's old assets.
+  const network = fetch(new Request(request, { cache: "no-store" })).then(async function(response) {
+    const isHTML = key === INDEX_URL || key === self.registration.scope;
+    if (!response.ok || (!isHTML && (response.headers.get("content-type") || "").includes("text/html")) ||
+        !response.url.startsWith(self.registration.scope)) throw new Error("Runtime resource unavailable");
+    const cache = await cachePromise;
+    await cache.put(key, response.clone());
+    return response;
+  });
+  event.waitUntil(network.catch(function() {}));
+  event.respondWith((async function() {
+    const cached = await (await cachePromise).match(key);
+    if (!cached) return network;
+    let timeout;
+    try {
+      // A weak/offline mobile connection must not hold the app behind a long timeout.
+      return await Promise.race([network, new Promise(resolve => { timeout = setTimeout(() => resolve(cached), 3000); })]);
+    } catch (_) { return cached; }
+    finally { clearTimeout(timeout); }
+  })());
 });
 
 // Confirm the complete current offline bundle, not just worker registration.
 self.addEventListener("message", function(event) {
+  if (event.data && event.data.type === "GET_BUILD" && event.ports[0]) {
+    event.ports[0].postMessage({ build: CACHE_NAME });
+    return;
+  }
   if (!event.data || event.data.type !== "CHECK_OFFLINE" || !event.ports[0]) return;
   event.waitUntil(caches.open(RELEASE_CACHE).then(async function(cache) {
     const responses = await Promise.all(REQUIRED_FILES.map(function(file) { return cache.match(file); }));
