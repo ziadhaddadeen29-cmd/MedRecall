@@ -11,8 +11,12 @@
   ];
   let databasePromise;
   let pendingWrite = Promise.resolve();
+  function validQuestionId(id) {
+    return typeof id === "string" && (/^q1-[0-9a-f]{32}$/.test(id) || /^pastmock-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id));
+  }
 
   function questionId(question) {
+    if (question.topic === "past-mock-exams" && validQuestionId(question.id) && question.id.startsWith("pastmock-")) return question.id;
     // Four independent 32-bit FNV-1a passes give a stable, compact 128-bit ID.
     // Length prefixes make topic/text boundaries unambiguous.
     const input = question.topic.length + ":" + question.topic + question.text.length + ":" + question.text;
@@ -37,7 +41,9 @@
       lastSession: null,
       activeQuiz: null,
       lastStudiedTopic: null,
-      settings: {}
+      settings: {},
+      profile: { name: "" },
+      uiPreferences: { theme: "dark" }
     };
   }
 
@@ -100,51 +106,57 @@
   }
 
   function validBreakdown(item) {
-    return plainObject(item) && onlyKeys(item, ["topic", "total", "correct", "wrong", "unknown"]) &&
+    return plainObject(item) && onlyKeys(item, ["topic", "total", "correct", "wrong", "unknown", "unanswered", "idk"]) &&
       typeof item.topic === "string" && ["total", "correct", "wrong", "unknown"].every(function(field) {
         return Number.isSafeInteger(item[field]) && item[field] >= 0;
-      });
+      }) && ["unanswered", "idk"].every(function(field) { return !(field in item) || Number.isSafeInteger(item[field]) && item[field] >= 0; });
   }
 
   function validSession(session) {
-    return plainObject(session) && onlyKeys(session, ["name", "correct", "total", "percent", "mode", "date", "time", "breakdown", "answers"]) &&
+    return plainObject(session) && onlyKeys(session, ["name", "correct", "total", "percent", "mode", "date", "time", "breakdown", "answers", "completedAt", "idkCount", "unansweredCount"]) &&
       typeof session.name === "string" && ["correct", "total", "percent"].every(function(field) { return Number.isFinite(session[field]); }) &&
+      (!("completedAt" in session) || Number.isFinite(session.completedAt)) &&
+      ["idkCount", "unansweredCount"].every(function(field) { return !(field in session) || Number.isSafeInteger(session[field]) && session[field] >= 0; }) &&
       ["recall", "exam"].includes(session.mode) && typeof session.date === "string" && typeof session.time === "string" &&
       Array.isArray(session.breakdown) && session.breakdown.every(validBreakdown) &&
       Array.isArray(session.answers) && session.answers.every(function(answer) {
-        return plainObject(answer) && onlyKeys(answer, ["id", "topic", "status"]) && /^q1-[0-9a-f]{32}$/.test(answer.id) && typeof answer.topic === "string" &&
-          ["correct", "wrong", "unknown"].includes(answer.status);
+        return plainObject(answer) && onlyKeys(answer, ["id", "topic", "status", "idk"]) && validQuestionId(answer.id) && typeof answer.topic === "string" &&
+          ["correct", "wrong", "unknown", "unanswered"].includes(answer.status) && (!("idk" in answer) || typeof answer.idk === "boolean");
       });
   }
 
   function validActiveQuiz(quiz) {
-    return plainObject(quiz) && onlyKeys(quiz, ["name", "mode", "timerEnabled", "durationSeconds", "secondsLeft", "startedAt", "savedAt", "questionIds", "answers", "draftAnswers", "index"]) &&
+    return plainObject(quiz) && onlyKeys(quiz, ["name", "mode", "timerEnabled", "durationSeconds", "secondsLeft", "startedAt", "savedAt", "questionIds", "answers", "draftAnswers", "idkFlags", "sessionId", "index"]) &&
       typeof quiz.name === "string" && ["recall", "exam"].includes(quiz.mode) && typeof quiz.timerEnabled === "boolean" &&
       ["durationSeconds", "secondsLeft", "startedAt", "savedAt", "index"].every(function(field) { return Number.isFinite(quiz[field]); }) &&
       Array.isArray(quiz.questionIds) && quiz.questionIds.length > 0 && quiz.questionIds.length <= 200 &&
-      quiz.questionIds.every(function(id) { return /^q1-[0-9a-f]{32}$/.test(id); }) &&
+      quiz.questionIds.every(validQuestionId) &&
       Array.isArray(quiz.answers) && quiz.answers.length === quiz.questionIds.length &&
       quiz.answers.every(function(answer) { return answer === null || answer === "unknown" || Number.isInteger(answer) && answer >= 0 && answer <= 3; }) &&
       (!('draftAnswers' in quiz) || Array.isArray(quiz.draftAnswers) && quiz.draftAnswers.length === quiz.answers.length && quiz.draftAnswers.every(function(answer) { return answer === null || answer === "unknown" || Number.isInteger(answer) && answer >= 0 && answer <= 3; })) &&
+      (!("idkFlags" in quiz) || Array.isArray(quiz.idkFlags) && quiz.idkFlags.length === quiz.answers.length && quiz.idkFlags.every(function(flag) { return typeof flag === "boolean"; })) &&
+      (!("sessionId" in quiz) || typeof quiz.sessionId === "string") &&
       Number.isInteger(quiz.index) && quiz.index >= 0 && quiz.index < quiz.questionIds.length;
   }
 
   function validate(state) {
-    if (!plainObject(state) || !onlyKeys(state, ["schemaVersion", "seenQuestionIds", "questionStats", "markedQuestions", "history", "sessionHistory", "lastSession", "activeQuiz", "lastStudiedTopic", "settings"]) || state.schemaVersion !== 1 ||
+    if (!plainObject(state) || !onlyKeys(state, ["schemaVersion", "seenQuestionIds", "questionStats", "markedQuestions", "history", "sessionHistory", "lastSession", "activeQuiz", "lastStudiedTopic", "settings", "profile", "uiPreferences"]) || state.schemaVersion !== 1 ||
         !Array.isArray(state.seenQuestionIds) || state.seenQuestionIds.length > 100000 ||
-        !state.seenQuestionIds.every(function(id) { return typeof id === "string" && /^q1-[0-9a-f]{32}$/.test(id); }) ||
+        !state.seenQuestionIds.every(validQuestionId) ||
         !plainObject(state.questionStats) || Object.keys(state.questionStats).length > 100000 ||
         !Array.isArray(state.markedQuestions) || state.markedQuestions.length > 100000 ||
         !Array.isArray(state.history) || state.history.length > 1000 ||
         !Array.isArray(state.sessionHistory) || state.sessionHistory.length > 1000 ||
         !plainObject(state.settings) || !onlyKeys(state.settings, ["name", "mode", "timerEnabled", "timerHours", "timerMinutes", "count", "topics"]) ||
+        ("profile" in state && (!plainObject(state.profile) || !onlyKeys(state.profile, ["name"]) || typeof state.profile.name !== "string" || state.profile.name.length > 80)) ||
+        ("uiPreferences" in state && (!plainObject(state.uiPreferences) || !onlyKeys(state.uiPreferences, ["theme"]) || !["dark", "light"].includes(state.uiPreferences.theme))) ||
         !(state.lastStudiedTopic === null || typeof state.lastStudiedTopic === "string") ||
         !(state.lastSession === null || validSession(state.lastSession)) ||
         !(state.activeQuiz === null || validActiveQuiz(state.activeQuiz))) return false;
 
     if (!Object.entries(state.questionStats).every(function(entry) {
       const item = entry[1];
-      return /^q1-[0-9a-f]{32}$/.test(entry[0]) && plainObject(item) &&
+      return validQuestionId(entry[0]) && plainObject(item) &&
         onlyKeys(item, ["topic", "attempts", "correct", "incorrect", "unknown", "lastStatus", "lastAttemptedAt"]) && typeof item.topic === "string" &&
         ["attempts", "correct", "incorrect", "unknown"].every(function(field) {
           return Number.isSafeInteger(item[field]) && item[field] >= 0;
@@ -153,7 +165,7 @@
     })) return false;
 
     if (!state.markedQuestions.every(function(item) {
-      return plainObject(item) && onlyKeys(item, ["id", "topic", "text", "marked", "note"]) && /^q1-[0-9a-f]{32}$/.test(item.id) &&
+      return plainObject(item) && onlyKeys(item, ["id", "topic", "text", "marked", "note"]) && validQuestionId(item.id) &&
         typeof item.topic === "string" && typeof item.text === "string" &&
         typeof item.marked === "boolean" && typeof item.note === "string";
     })) return false;

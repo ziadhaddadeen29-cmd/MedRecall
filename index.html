@@ -38,10 +38,11 @@
 
         <div class="sidebar-spacer"></div>
         <button type="button" class="nav-item" id="soundToggle" aria-pressed="true">Sound effects: On</button>
-        <div class="profile-card">
-          <div class="avatar">MA</div>
-          <span><b>3rd year Student</b><small>Infectious diseases I</small></span>
-        </div>
+        <button class="profile-card" id="editProfile" type="button" aria-label="Edit student name">
+          <div class="avatar" id="sidebarAvatar">MA</div>
+          <span><b id="sidebarProfileName">3rd year Student</b><small>Infectious diseases I</small></span><i aria-hidden="true">✎</i>
+        </button>
+        <button type="button" class="nav-item" id="themeToggle" aria-pressed="false">Light theme</button>
       </aside>
       <button class="sidebar-backdrop" id="sidebarBackdrop" type="button" aria-label="Close menu" hidden></button>
 
@@ -52,7 +53,7 @@
           <div class="top-actions">
             <button id="languageToggle" class="updates-button" type="button" aria-label="Switch to Arabic">عربي</button>
             <button id="whatsNewButton" class="updates-button" type="button" aria-label="What's New" aria-haspopup="dialog" aria-controls="whatsNewDialog"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="updateBadge" class="update-badge" hidden></span></button>
-            <div class="top-avatar">MA</div>
+            <div class="top-avatar" id="topAvatar">MA</div>
           </div>
         </header>
 
@@ -61,13 +62,14 @@
             <div class="hero-copy">
               <p class="eyebrow">INFECTIOUS DISEASES I</p>
               <p class="audience-branding">Built exclusively for AFM 3rd Year Students</p>
+              <p class="hero-welcome" id="heroWelcome" hidden></p>
               <h1>Make every<br /><em>study session</em> count.</h1>
               <p class="hero-text">Turn your module sources into targeted questions and remember the details that matter.</p>
               <p class="bank-size" id="bankSizeSummary">Loading the bundled question bank…</p>
               <div class="hero-buttons"><button class="primary-button" data-go-create>Build a quiz <span>→</span></button><button class="outline-button" id="performanceShortcut" type="button">Check your performance</button></div>
             </div>
             <div class="hero-image-wrap">
-              <img src="assets/study-doctor.svg" alt="Illustration of a doctor writing beside medical books" />
+              <img src="assets/study-doctor-v2.jpg" alt="Illustration of a young doctor studying and writing beside medical books" />
               <div class="hero-image-overlay"></div>
             </div>
             <div class="hero-watermark">MR</div>
@@ -97,7 +99,7 @@
             </article>
             <article class="stat-card stat-card-b">
               <div class="stat-symbol">↗</div>
-              <div><span>BEST ACCURACY</span><strong id="accuracyStat">—</strong><small>Build confidence topic by topic</small></div>
+              <div><span>LATEST ACCURACY</span><strong id="accuracyStat">—</strong><small id="latestAccuracyTopic">Build confidence topic by topic</small></div>
             </article>
           </div>
 
@@ -262,6 +264,7 @@
             <section class="analysis-panel"><div class="analysis-panel-heading"><div><p class="eyebrow">BY SUBJECT</p><h2>Module accuracy & coverage</h2></div></div><div class="module-analysis-list" id="moduleAnalysisList"></div></section>
             <section class="analysis-panel"><div class="analysis-panel-heading"><div><p class="eyebrow">STUDY SIGNALS</p><h2>Where to focus next</h2></div></div><div class="analysis-insights" id="analysisInsights"></div></section>
           </div>
+          <section class="analysis-panel trend-panel"><div class="analysis-panel-heading"><div><p class="eyebrow">PROGRESS OVER TIME</p><h2>Topic accuracy by completed quiz</h2></div></div><div id="trendTopics" class="trend-topics" role="group" aria-label="Choose graph topics"></div><div id="trendGraph" class="trend-graph"></div></section>
           <div class="analysis-table-wrap">
             <table class="analysis-table">
               <thead><tr><th>Topic</th><th>Available</th><th>Unique answered</th><th>Attempts</th><th>Correct</th><th>Wrong</th><th>Don't know</th></tr></thead>
@@ -276,12 +279,12 @@
             <h1>Your personal <em>review shelf.</em></h1>
             <p>Questions you flagged with your own study notes.</p>
           </div>
-          <div class="saved-notes-list" id="savedNotesList"></div>
+          <button type="button" class="outline-button notes-back" id="notesBack" hidden>← All marked topics</button><div class="saved-notes-list" id="savedNotesList"></div>
         </section>
 
         <section class="view" id="quizView">
           <div class="quiz-topline">
-            <button class="back-to-builder" id="exitQuiz">← Exit quiz</button>
+            <button class="back-to-builder" id="exitQuiz">← Finish & exit quiz</button>
             <div class="quiz-name-top" id="quizNameTop">Infectious diseases review</div>
             <div class="quiz-timer" id="quizTimer"><span>◷</span> <b>20:00</b></div>
           </div>
@@ -293,6 +296,8 @@
           <div class="question-stage">
             <span class="topic-pill" id="quizTopic">MICROBIOLOGY</span>
             <h1 id="questionText">Question text</h1>
+            <details class="question-case" id="questionCase" hidden><summary>View case</summary><p id="caseText" data-academic></p></details>
+            <div class="question-images" id="questionImages"></div>
             <div class="answer-list" id="answerList"></div>
             <div class="feedback-box" id="feedbackBox"></div>
             <div class="explanation-control" id="explanationControl" hidden>
@@ -332,6 +337,7 @@
               <div><b id="resultTotal">0</b><span>QUESTIONS</span></div>
               <div><b id="resultTime">—</b><span>TIME USED</span></div>
             </div>
+            <div class="result-outcomes" id="resultOutcomes"></div>
             <div class="result-topic-summary" id="resultTopicSummary"></div>
             <div class="results-actions"><button class="outline-button" id="reviewQuiz">Review answers</button><button class="primary-button" id="newQuiz">Create another <span>→</span></button></div>
           </div>
@@ -339,6 +345,11 @@
       </main>
     </div>
     <div class="toast" id="toast" role="status"></div>
+    <dialog class="report-dialog exam-disclaimer" id="examDisclaimer" aria-labelledby="examDisclaimerTitle" lang="ar" dir="rtl">
+      <div class="report-dialog-card"><h2 id="examDisclaimerTitle">تنبيه</h2><p><strong>لقد اخترت Past &amp; Mock Exams ضمن هذا الاختبار.</strong></p><p>هذه الأسئلة مجمعة من امتحانات وموكات سابقة، لذلك قد تحتوي بعض الأسئلة على أجزاء أو مواضيع لم تعد موجودة في المنهج الحالي. تم الإبقاء عليها للاستفادة والتدريب على نمط الأسئلة، ويُعتمد المنهج الحالي كمصدر أساسي للدراسة.</p><div class="dialog-actions"><button type="button" class="outline-button" id="cancelExamDisclaimer">إلغاء</button><button type="button" class="primary-button" id="continueExamDisclaimer">متابعة</button></div></div>
+    </dialog>
+    <dialog class="report-dialog profile-dialog" id="profileDialog" aria-labelledby="profileDialogTitle"><form class="report-dialog-card" id="profileForm"><p class="eyebrow">YOUR STUDY SPACE</p><h2 id="profileDialogTitle">What should we call you?</h2><p>Your name stays on this device and appears on your MedRecall welcome screen.</p><label class="dialog-field" for="studentName"><span>Your name</span><input id="studentName" class="text-input" type="text" maxlength="80" autocomplete="name" required placeholder="e.g. Ziad"></label><div class="dialog-actions"><button class="outline-button" id="cancelProfile" type="button" hidden>Cancel</button><button class="primary-button" type="submit">Save name</button></div></form></dialog>
+    <dialog class="exam-image-viewer" id="examImageViewer" aria-label="Enlarged question image"><button id="closeExamImage" type="button" aria-label="Close image">×</button><div class="exam-viewer-area"><img id="examViewerImage" alt="" /></div></dialog>
     <dialog class="report-dialog" id="reportDialog" aria-labelledby="reportDialogTitle">
       <form method="dialog" class="report-dialog-card" id="reportForm">
         <div class="dialog-heading"><div><p class="eyebrow">QUESTION FEEDBACK</p><h2 id="reportDialogTitle">Report this MCQ</h2></div><button class="dialog-close" type="submit" value="cancel" aria-label="Close report dialog">×</button></div>
@@ -355,6 +366,7 @@
     </dialog>
     <script src="releases.js"></script>
     <script src="question-bank.js"></script>
+    <script src="exam-bank.js"></script>
     <script src="progress-store.js"></script>
     <script src="ux.js"></script>
     <script src="app.js"></script>

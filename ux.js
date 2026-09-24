@@ -11,8 +11,19 @@
   let context = null;
   let lastSound = -Infinity;
   let active = [];
-  const patterns = { click: [440], navigation: [480, 620], select: [540], modal: [480, 570],
-    correct: [587, 784], wrong: [330, 294], unknown: [392], complete: [440, 554, 659], perfect: [523, 659, 784, 1047], startup: [440, 659] };
+  // Soft, short offline chimes. Exam selections use only the neutral "select" cue.
+  const patterns = {
+    click: { notes: [523], volume: .005, length: .07, gap: 0 },
+    navigation: { notes: [440, 554], volume: .006, length: .095, gap: .055 },
+    select: { notes: [494], volume: .006, length: .09, gap: 0 },
+    modal: { notes: [440, 554], volume: .006, length: .10, gap: .065 },
+    correct: { notes: [523, 659], volume: .014, length: .16, gap: .105 },
+    wrong: { notes: [392, 349], volume: .009, length: .14, gap: .095 },
+    unknown: { notes: [392], volume: .006, length: .11, gap: 0 },
+    complete: { notes: [440, 554, 659], volume: .012, length: .19, gap: .10 },
+    perfect: { notes: [523, 659, 784, 1047], volume: .014, length: .20, gap: .115 },
+    startup: { notes: [440, 659], volume: .006, length: .13, gap: .10 }
+  };
   function unlock() {
     if (!enabled) return;
     try {
@@ -30,21 +41,24 @@
     try {
       if (!enabled || !context || context.state !== "running") return;
       const important = ["correct", "wrong", "unknown", "complete", "perfect"].includes(type);
-      if (!important && performance.now() - lastSound < 90) return;
+      if (performance.now() - lastSound < (important ? 60 : 110)) return;
       stop();
       lastSound = performance.now();
-      (patterns[type] || patterns.click).forEach(function(frequency, index) {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const time = context.currentTime + index * .075;
-        oscillator.type = "sine";
-        oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(.0001, time);
-        gain.gain.exponentialRampToValueAtTime(important ? .025 : .012, time + .012);
-        gain.gain.exponentialRampToValueAtTime(.0001, time + .10);
-        oscillator.connect(gain); gain.connect(context.destination);
-        oscillator.onended = function() { oscillator.disconnect(); gain.disconnect(); active = active.filter(function(item) { return item !== oscillator; }); };
-        oscillator.start(time); oscillator.stop(time + .12); active.push(oscillator);
+      const pattern = patterns[type] || patterns.click;
+      pattern.notes.forEach(function(frequency, index) {
+        const time = context.currentTime + index * pattern.gap;
+        [1, 2].forEach(function(harmonic) {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency * harmonic, time);
+          gain.gain.setValueAtTime(.0001, time);
+          gain.gain.exponentialRampToValueAtTime(pattern.volume * (harmonic === 1 ? 1 : .12), time + .018);
+          gain.gain.exponentialRampToValueAtTime(.0001, time + pattern.length);
+          oscillator.connect(gain); gain.connect(context.destination);
+          oscillator.onended = function() { oscillator.disconnect(); gain.disconnect(); active = active.filter(function(item) { return item !== oscillator; }); };
+          oscillator.start(time); oscillator.stop(time + pattern.length + .01); active.push(oscillator);
+        });
       });
     } catch (_) { /* Audio must never interrupt studying. */ }
   }

@@ -3,6 +3,15 @@
 globalThis.MedRecallRelease = {
   history: [
     {
+      version: "1.2.0",
+      date: "2026-09-24",
+      title: "What's New",
+      changes: [
+        "Previous & Mock Exams — Practice questions collected from previous exams and mock exams are now available in MedRecall.",
+        "Improved Analysis — Track your topic performance over time with the new interactive progress analysis."
+      ]
+    },
+    {
       version: "1.1.1",
       date: "2026-09-23",
       title: "Quiz answer controls",

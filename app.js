@@ -60,11 +60,15 @@ const subjects = [
     ]
   }
 ];
+subjects.push({ id: "past-mock", icon: "▤", title: "Past & Mock Exams", subtitle: "Historical exam practice", file: null, pages: "", topics: [["past-mock-exams", "Past & Mock Exams"]] });
 
 const builtInQuestionBank = Array.isArray(window.MEDRECALL_QUESTION_BANK) ? window.MEDRECALL_QUESTION_BANK : [];
+const historicalBank = window.MEDRECALL_EXAM_BANK && Array.isArray(window.MEDRECALL_EXAM_BANK.questions) ? window.MEDRECALL_EXAM_BANK.questions : [];
+const historicalCases = window.MEDRECALL_EXAM_BANK?.cases || {};
+const permanentQuestionBank = builtInQuestionBank.concat(historicalBank);
 const APP_VERSION = MedRecallRelease.version;
 const WHATSAPP_NUMBER = "962779809947";
-let questionBank = builtInQuestionBank.slice();
+let questionBank = permanentQuestionBank.slice();
 const importedQuestionBankKey = "medrecall-imported-question-bank";
 const validTopicIds = new Set(subjects.flatMap(function(subject) {
   return subject.topics.map(function(topic) { return topic[0]; });
@@ -79,16 +83,87 @@ let progressReady = false;
 let progressError = null;
 let pendingAnswer = null;
 let explanationOpen = false;
+let examDisclaimerAccepted = false;
+let selectedNotesTopic = null;
+let selectedTrendTopics = new Set();
+const quizSessionId = (function() {
+  try {
+    let id = sessionStorage.getItem("medrecall-live-session");
+    const navigation = performance.getEntriesByType("navigation")[0];
+    if (!id || navigation?.type !== "reload") {
+      id = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+      sessionStorage.setItem("medrecall-live-session", id);
+    }
+    return id;
+  } catch (_) { return String(Date.now()) + Math.random(); }
+})();
 
 const sourceList = document.getElementById("sourceList");
 const sourceLibraryList = document.getElementById("sourceLibraryList");
 const toast = document.getElementById("toast");
 
-const bundledQuestionsById = new Map(builtInQuestionBank.map(function(question) {
+function cleanStudentName(value) {
+  return String(value || "").trim().replace(/^(?:dr\.?|د\.)\s*/iu, "").replace(/\s+/g, " ").slice(0, 80);
+}
+
+function doctorName(name) {
+  return /[\u0600-\u06ff]/u.test(name) ? "د. " + name : "Dr. " + name;
+}
+
+function renderProfile() {
+  const name = cleanStudentName(progressState?.profile?.name);
+  const display = name ? doctorName(name) : "3rd year Student";
+  const initials = name ? name.split(/\s+/u).slice(0, 2).map(function(part) { return Array.from(part)[0] || ""; }).join("").toUpperCase() : "MA";
+  document.getElementById("sidebarProfileName").textContent = display;
+  document.getElementById("sidebarAvatar").textContent = initials;
+  document.getElementById("topAvatar").textContent = initials;
+  const welcome = document.getElementById("heroWelcome");
+  welcome.hidden = !name;
+  welcome.textContent = name ? (document.documentElement.lang === "ar" || /[\u0600-\u06ff]/u.test(name) ? "أهلاً " : "Welcome, ") + display : "";
+}
+
+function applyTheme() {
+  const theme = progressState?.uiPreferences?.theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = theme;
+  const toggle = document.getElementById("themeToggle");
+  toggle.textContent = theme === "light" ? "Dark theme" : "Light theme";
+  toggle.setAttribute("aria-pressed", String(theme === "light"));
+  document.querySelector('meta[name="theme-color"]').content = theme === "light" ? "#f6f5f0" : "#102C44";
+}
+
+document.getElementById("themeToggle").addEventListener("click", function() {
+  if (!progressReady) return;
+  progressState.uiPreferences = { theme: progressState.uiPreferences?.theme === "light" ? "dark" : "light" };
+  applyTheme();
+  saveProgress();
+});
+document.getElementById("editProfile").addEventListener("click", function() {
+  if (!progressReady) return;
+  document.getElementById("studentName").value = progressState.profile?.name || "";
+  document.getElementById("cancelProfile").hidden = false;
+  document.getElementById("profileDialog").showModal();
+});
+document.getElementById("cancelProfile").addEventListener("click", function() { document.getElementById("profileDialog").close(); });
+document.getElementById("profileDialog").addEventListener("cancel", function(event) {
+  if (!cleanStudentName(progressState?.profile?.name)) event.preventDefault();
+});
+document.getElementById("profileForm").addEventListener("submit", function(event) {
+  event.preventDefault();
+  const name = cleanStudentName(document.getElementById("studentName").value);
+  if (!name) { document.getElementById("studentName").focus(); return; }
+  progressState.profile = { name: name };
+  saveProgress();
+  renderProfile();
+  document.getElementById("profileDialog").close();
+  showFirstMobileNavigation();
+});
+document.addEventListener("medrecall-language-change", renderProfile);
+
+const bundledQuestionsById = new Map(permanentQuestionBank.map(function(question) {
   return [questionId(question), question];
 }));
 const bundledTopicCounts = new Map();
-builtInQuestionBank.forEach(function(question) {
+permanentQuestionBank.forEach(function(question) {
   bundledTopicCounts.set(question.topic, (bundledTopicCounts.get(question.topic) || 0) + 1);
 });
 
@@ -172,7 +247,7 @@ function saveProgress() {
 }
 
 function saveActiveQuiz() {
-  if (!progressReady || !currentQuiz || reviewOnly) return;
+  if (!progressReady || !currentQuiz || currentQuiz.finished || reviewOnly) return;
   progressState.activeQuiz = {
     name: currentQuiz.name,
     mode: currentQuiz.mode,
@@ -184,6 +259,8 @@ function saveActiveQuiz() {
     questionIds: currentQuiz.questions.map(questionId),
     answers: currentQuiz.answers.slice(),
     draftAnswers: currentQuiz.drafts.slice(),
+    idkFlags: currentQuiz.idkFlags.slice(),
+    sessionId: quizSessionId,
     index: currentQuiz.index
   };
   saveProgress();
@@ -203,11 +280,36 @@ function restoreActiveQuiz() {
     name: saved.name, mode: saved.mode, timerEnabled: saved.timerEnabled,
     durationSeconds: saved.durationSeconds,
     secondsLeft: saved.timerEnabled ? Math.min(saved.durationSeconds, Math.max(0, saved.secondsLeft - Math.max(0, Math.floor((Date.now() - saved.savedAt) / 1000)))) : saved.secondsLeft,
-    startedAt: saved.startedAt, questions: questions, answers: saved.answers.slice(), drafts: (saved.draftAnswers || saved.answers).slice(), index: saved.index
+    startedAt: saved.startedAt, questions: questions, answers: saved.answers.slice(), drafts: (saved.draftAnswers || saved.answers).slice(),
+    idkFlags: Array.isArray(saved.idkFlags) ? saved.idkFlags.slice() : saved.answers.map(function(answer) { return answer === "unknown"; }), index: saved.index
   };
+  if (!Array.isArray(saved.idkFlags)) {
+    currentQuiz.questions.forEach(function(question, index) {
+      if (currentQuiz.answers[index] !== "unknown" && currentQuiz.drafts[index] !== "unknown") return;
+      currentQuiz.idkFlags[index] = true;
+      if (currentQuiz.answers[index] === "unknown") {
+        const stats = progressState.questionStats[questionId(question)];
+        if (stats && stats.unknown > 0) {
+          stats.unknown -= 1;
+          stats.attempts -= 1;
+          if (stats.attempts === 0) {
+            delete progressState.questionStats[questionId(question)];
+            progressState.seenQuestionIds = progressState.seenQuestionIds.filter(function(id) { return id !== questionId(question); });
+          } else if (stats.lastStatus === "unknown") stats.lastStatus = stats.correct ? "correct" : stats.incorrect ? "wrong" : "unknown";
+        }
+      }
+      currentQuiz.answers[index] = null;
+      currentQuiz.drafts[index] = null;
+    });
+    saveProgress();
+  }
   reviewOnly = false;
   pendingAnswer = currentQuiz.drafts[currentQuiz.index];
   explanationOpen = false;
+  if (saved.sessionId !== quizSessionId) {
+    finishQuiz();
+    return;
+  }
   if (currentQuiz.timerEnabled && currentQuiz.secondsLeft <= 0) {
     finishQuiz();
     return;
@@ -246,14 +348,14 @@ function normalizeImportedQuestion(item) {
 }
 
 function setImportedQuestions(items) {
-  const seen = new Set(builtInQuestionBank.map(questionKey));
+  const seen = new Set(permanentQuestionBank.map(questionKey));
   const unique = items.filter(function(item) {
     const key = questionKey(item);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
-  questionBank = builtInQuestionBank.concat(unique);
+  questionBank = permanentQuestionBank.concat(unique);
   localStorage.setItem(importedQuestionBankKey, JSON.stringify(unique));
   return unique.length;
 }
@@ -398,7 +500,7 @@ function getEligibleQuestions() {
   const markedIds = new Set(loadMarkedQuestions().filter(function(item) { return item.marked; }).map(function(item) { return item.id; }));
   const reviewIds = new Set((lastSession ? lastSession.answers : []).filter(function(item) {
     return (item.status === "wrong" && (modes.has("wrong") || modes.has("missed"))) ||
-      (item.status === "unknown" && (modes.has("unknown") || modes.has("missed")));
+      ((item.status === "unknown" || item.idk === true) && (modes.has("unknown") || modes.has("missed")));
   }).map(function(item) { return item.id; }));
   const questions = topicPool.filter(function(question) {
     const id = questionId(question);
@@ -481,6 +583,7 @@ function updateBuilderSummary() {
 
 function renderLibrary() {
   sourceLibraryList.innerHTML = subjects.map(function(subject) {
+    if (subject.id === "past-mock") return '<article class="library-card"><div class="library-file-icon">MCQ</div><div><h3>Past & Mock Exams</h3><p>Combined historical practice pool · ' + historicalBank.length + ' publishable MCQs</p></div></article>';
     return '<article class="library-card"><div class="library-file-icon">PDF</div><div><h3>' + subject.title + '</h3><p>' + subject.subtitle + ' · ' + subject.file + '</p></div><div class="library-meta"><span>' + subject.pages + '</span><span>MODULE ID 1</span></div><button class="library-open" title="View source information" data-library-open="' + subject.id + '">→</button></article>';
   }).join("");
   sourceLibraryList.querySelectorAll("[data-library-open]").forEach(function(button) {
@@ -566,6 +669,21 @@ function playAnswerSound(type) {
   MedRecallSound.play(type);
 }
 
+function uniqueQuizName(requested, mode) {
+  const normalize = function(value) { return value.trim().replace(/\s+/g, " ").toLocaleLowerCase(); };
+  const taken = new Set(loadHistory().concat(loadHistoryDetails()).map(function(item) { return normalize(item.name); }));
+  const preferred = requested.trim().replace(/\s+/g, " ") || "Infectious diseases review";
+  if (!taken.has(normalize(preferred))) return preferred;
+  const topics = Array.from(selectedTopics).map(getTopicName);
+  const short = function(value) { return value.length > 19 ? value.slice(0, 18).trimEnd() + "…" : value; };
+  const labels = topics.slice(0, 2).map(short);
+  const base = (topics.length <= 2 ? labels.join(" + ") : labels.join(" + ") + " + " + (topics.length - 2) + " more") + (mode === "exam" ? " Exam" : " Quiz");
+  if (!taken.has(normalize(base))) return base;
+  for (let number = 1; ; number += 1) {
+    if (!taken.has(normalize(base + " " + number))) return base + " " + number;
+  }
+}
+
 function startQuiz() {
   if (!progressReady) {
     showToast(progressError ? "Progress storage is unavailable in this browser." : "Loading your progress. Please try again in a moment.");
@@ -577,7 +695,7 @@ function startQuiz() {
   const mode = document.querySelector('input[name="quizMode"]:checked').value;
   const timerEnabled = document.getElementById("timerToggle").checked;
   const durationMins = getTimerMinutes(true);
-  const name = document.getElementById("quizName").value.trim() || "Infectious diseases review";
+  const name = uniqueQuizName(document.getElementById("quizName").value, mode);
   const pool = getEligibleQuestions();
 
   if (pool.length === 0) {
@@ -593,6 +711,11 @@ function startQuiz() {
     showToast("Set a timer of at least one minute, or switch the timer off.");
     return;
   }
+  if (selectedTopics.has("past-mock-exams") && !examDisclaimerAccepted) {
+    document.getElementById("examDisclaimer").showModal();
+    return;
+  }
+  examDisclaimerAccepted = false;
   const questions = shuffle(pool).slice(0, count).map(function(item) { return Object.assign({}, item); });
   currentQuiz = {
     name: name,
@@ -604,6 +727,7 @@ function startQuiz() {
     questions: questions,
     answers: new Array(questions.length).fill(null),
     drafts: new Array(questions.length).fill(null),
+    idkFlags: new Array(questions.length).fill(false),
     index: 0
   };
   saveActiveQuiz();
@@ -650,6 +774,22 @@ function renderQuestion() {
   document.getElementById("quizProgress").style.width = ((currentQuiz.index + 1) / currentQuiz.questions.length * 100) + "%";
   document.getElementById("quizTopic").textContent = subject.title.toUpperCase();
   document.getElementById("questionText").textContent = question.text;
+  const casePanel = document.getElementById("questionCase");
+  casePanel.hidden = !question.caseId || !historicalCases[question.caseId];
+  if (!casePanel.hidden) document.getElementById("caseText").textContent = historicalCases[question.caseId];
+  const figures = question.images || (question.image ? [question.image] : []);
+  const imageContainer = document.getElementById("questionImages");
+  imageContainer.replaceChildren();
+  figures.forEach(function(figure) {
+    const button = document.createElement("button");
+    button.type = "button"; button.className = "question-image-button";
+    button.setAttribute("aria-label", "Enlarge question image");
+    const img = document.createElement("img");
+    img.src = figure.src; img.alt = figure.alt; img.loading = "lazy";
+    button.appendChild(img);
+    button.addEventListener("click", function() { openExamImage(figure); });
+    imageContainer.appendChild(button);
+  });
   document.getElementById("keyboardHint").textContent = reviewOnly ? "Review the correct answer and rationale" : chosen === null ? "Choose, then check your answer" : "Answer checked";
   if (editingExam) document.getElementById("keyboardHint").textContent = "Selections can be changed until you finish the exam";
   document.getElementById("nextButton").textContent = currentQuiz.index === currentQuiz.questions.length - 1 ? (reviewOnly ? "Back to results" : "Finish quiz →") : (reviewOnly ? "Next answer →" : "Next question →");
@@ -673,7 +813,7 @@ function renderQuestion() {
       ? '<span class="answer-explanation"><b>Why?</b> ' + escapeHtml(question.explanation) + '</span>'
       : "";
     return '<button type="button" class="' + className + '" data-answer="' + index + '" aria-pressed="' + String(!reviewOnly && chosen === null && index === pendingAnswer) + '" ' + disabled + '><span class="answer-letter">' + answerLetters[index] + '</span><span class="answer-text">' + escapeHtml(answer) + '</span>' + explanation + '</button>';
-  }).join("") + ((editingExam ? pendingAnswer : chosen) === "unknown" ? '<div class="unknown-answer-status">Marked as “I don’t know”. No explanation is shown for this question.</div>' : "");
+  }).join("") + (currentQuiz.idkFlags[currentQuiz.index] ? '<div class="unknown-answer-status">Marked “I don’t know”. You can still select an answer.</div>' : "");
 
   document.querySelectorAll("[data-answer]").forEach(function(button) {
     button.addEventListener("click", function() { chooseAnswer(Number(button.dataset.answer)); });
@@ -688,8 +828,10 @@ function renderQuestion() {
     feedback.style.display = "none";
   }
   const dontKnowButton = document.getElementById("dontKnowButton");
-  dontKnowButton.disabled = chosen !== null || reviewOnly;
-  dontKnowButton.textContent = chosen === "unknown" ? "Marked: I don't know" : "I don't know";
+  dontKnowButton.disabled = reviewOnly;
+  dontKnowButton.setAttribute("aria-pressed", String(currentQuiz.idkFlags[currentQuiz.index]));
+  dontKnowButton.classList.toggle("marked", currentQuiz.idkFlags[currentQuiz.index]);
+  dontKnowButton.textContent = currentQuiz.idkFlags[currentQuiz.index] ? "IDK marked ✓" : "I don't know";
   const submitButton = document.getElementById("submitAnswerButton");
   submitButton.hidden = editingExam || reviewOnly || chosen !== null;
   submitButton.disabled = pendingAnswer === null;
@@ -706,6 +848,15 @@ function renderQuestion() {
   renderQuestionNoteEditor();
 }
 
+function openExamImage(figure) {
+  const dialog = document.getElementById("examImageViewer");
+  const image = document.getElementById("examViewerImage");
+  image.src = figure.src;
+  image.alt = figure.alt;
+  image.style.transform = "";
+  dialog.showModal();
+}
+
 function chooseAnswer(answerIndex) {
   if (!currentQuiz || currentQuiz.finished || (currentQuiz.mode !== "exam" && currentQuiz.answers[currentQuiz.index] !== null) || reviewOnly) return;
   pendingAnswer = answerIndex;
@@ -720,7 +871,6 @@ function chooseAnswer(answerIndex) {
   saveActiveQuiz();
   renderQuestionNavigation();
   if (currentQuiz.mode === "exam") {
-    document.querySelector(".unknown-answer-status")?.remove();
     document.getElementById("scoreLive").textContent = currentQuiz.drafts.filter(function(answer) { return answer !== null; }).length + " answered";
   }
 }
@@ -739,16 +889,10 @@ function submitAnswer() {
 }
 
 function chooseUnknown() {
-  if (!currentQuiz || currentQuiz.finished || (currentQuiz.mode !== "exam" && currentQuiz.answers[currentQuiz.index] !== null) || reviewOnly) return;
-  currentQuiz.drafts[currentQuiz.index] = "unknown";
-  pendingAnswer = null;
-  explanationOpen = false;
-  if (currentQuiz.mode !== "exam") {
-    currentQuiz.answers[currentQuiz.index] = "unknown";
-    rememberAnsweredQuestion(currentQuiz.questions[currentQuiz.index], "unknown");
-  }
+  if (!currentQuiz || currentQuiz.finished || reviewOnly) return;
+  currentQuiz.idkFlags[currentQuiz.index] = !currentQuiz.idkFlags[currentQuiz.index];
   saveActiveQuiz();
-  MedRecallSound.play("unknown");
+  if (currentQuiz.idkFlags[currentQuiz.index]) MedRecallSound.play("unknown");
   renderQuestion();
 }
 
@@ -760,7 +904,8 @@ function getCorrectCount() {
 }
 
 function getAnswerStatus(answer, question) {
-  if (answer === "unknown" || answer === null) return "unknown";
+  if (answer === "unknown") return "unknown";
+  if (answer === null) return "unanswered";
   return answer === question.correct ? "correct" : "wrong";
 }
 
@@ -770,11 +915,12 @@ function buildTopicBreakdown() {
     const topicName = getTopicName(question.topic);
     const status = getAnswerStatus(currentQuiz.answers[index], question);
     if (!breakdown.has(topicName)) {
-      breakdown.set(topicName, { topic: topicName, total: 0, correct: 0, wrong: 0, unknown: 0 });
+      breakdown.set(topicName, { topic: topicName, total: 0, correct: 0, wrong: 0, unknown: 0, unanswered: 0, idk: 0 });
     }
     const item = breakdown.get(topicName);
     item.total += 1;
     item[status] += 1;
+    if (currentQuiz.idkFlags[index]) item.idk += 1;
   });
   return Array.from(breakdown.values());
 }
@@ -844,10 +990,13 @@ function finishQuiz() {
     percent: percent,
     mode: currentQuiz.mode,
     date: date,
+    completedAt: Date.now(),
     time: formatDuration(elapsed),
     breakdown: topicBreakdown,
+    idkCount: currentQuiz.idkFlags.filter(Boolean).length,
+    unansweredCount: currentQuiz.answers.filter(function(answer) { return answer === null; }).length,
     answers: currentQuiz.questions.map(function(question, index) {
-      return { id: questionId(question), topic: question.topic, status: getAnswerStatus(currentQuiz.answers[index], question) };
+      return { id: questionId(question), topic: question.topic, status: getAnswerStatus(currentQuiz.answers[index], question), idk: currentQuiz.idkFlags[index] };
     })
   };
   const history = loadHistory();
@@ -863,7 +1012,7 @@ function finishQuiz() {
   progressState.history = history.slice(0, 12);
   const sessionHistory = loadHistoryDetails();
   sessionHistory.unshift(session);
-  progressState.sessionHistory = sessionHistory.slice(0, 12);
+  progressState.sessionHistory = sessionHistory.slice(0, 100);
   progressState.lastSession = session;
   progressState.activeQuiz = null;
   saveProgress();
@@ -880,10 +1029,47 @@ function finishQuiz() {
   document.getElementById("resultTime").textContent = formatDuration(elapsed);
   document.getElementById("resultsMode").textContent = currentQuiz.mode.toUpperCase() + " SESSION COMPLETE";
   document.getElementById("resultDescription").textContent = resultMessage(percent, currentQuiz.mode);
-  const unknownCount = session.answers.filter(function(item) { return item.status === "unknown"; }).length;
-  const wrongCount = session.answers.filter(function(item) { return item.status === "wrong"; }).length;
-  document.getElementById("resultTopicSummary").textContent = unknownCount + " marked “I don't know” · " + wrongCount + " answered wrong · Open Overview for the full topic breakdown.";
+  renderResultBreakdown(session);
   setView("results");
+}
+
+function summarizeTopicResults(session) {
+  const byTopic = new Map();
+  session.answers.forEach(function(answer) {
+    const item = byTopic.get(answer.topic) || { id: answer.topic, topic: getTopicName(answer.topic), total: 0, answered: 0, correct: 0, wrong: 0, unanswered: 0, idk: 0 };
+    item.total += 1;
+    if (answer.status === "correct") item.correct += 1;
+    if (answer.status === "wrong") item.wrong += 1;
+    if (answer.status === "unanswered" || answer.status === "unknown") item.unanswered += 1;
+    else item.answered += 1;
+    if (answer.idk || answer.status === "unknown") item.idk += 1;
+    byTopic.set(answer.topic, item);
+  });
+  return Array.from(byTopic.values()).map(function(item) {
+    item.rate = item.total ? item.correct / item.total * 100 : 0;
+    item.accuracy = Math.round(item.rate);
+    return item;
+  });
+}
+
+function renderResultBreakdown(session) {
+  const topics = summarizeTopicResults(session);
+  const wrong = session.answers.filter(function(item) { return item.status === "wrong"; }).length;
+  const unanswered = session.unansweredCount ?? session.answers.filter(function(item) { return item.status === "unanswered" || item.status === "unknown"; }).length;
+  const idk = session.idkCount ?? session.answers.filter(function(item) { return item.idk || item.status === "unknown"; }).length;
+  document.getElementById("resultOutcomes").innerHTML =
+    '<span>Correct <b>' + session.correct + '</b></span><span>Incorrect <b>' + wrong + '</b></span><span>Unanswered <b>' + unanswered + '</b></span><span>IDK marked <b>' + idk + '</b></span>';
+  const rows = topics.map(function(item) {
+    return '<div class="result-topic-row"><b>' + escapeHtml(item.topic) + '</b><span>' + item.correct + ' / ' + item.total + ' · ' + item.accuracy + '%</span></div>';
+  }).join("");
+  let comparison = "";
+  if (topics.length > 1) {
+    const highest = Math.max.apply(null, topics.map(function(item) { return item.rate; }));
+    const lowest = Math.min.apply(null, topics.map(function(item) { return item.rate; }));
+    if (highest - lowest < 5) comparison = '<p>Performance was balanced across topics.</p>';
+    else comparison = '<div class="result-topic-extremes"><span><small>Strongest Topic</small><b>' + topics.filter(function(item) { return item.rate === highest; }).map(function(item) { return escapeHtml(item.topic); }).join(", ") + ' — ' + Math.round(highest) + '%</b></span><span><small>Weakest Topic</small><b>' + topics.filter(function(item) { return item.rate === lowest; }).map(function(item) { return escapeHtml(item.topic); }).join(", ") + ' — ' + Math.round(lowest) + '%</b></span></div>';
+  }
+  document.getElementById("resultTopicSummary").innerHTML = '<h2>Topic performance</h2>' + rows + comparison;
 }
 
 function resultMessage(percent, mode) {
@@ -922,10 +1108,12 @@ function escapeHtml(value) {
 }
 
 function updateHomeStats() {
-  const history = loadHistory();
+  const latest = loadLastSession();
   const answered = getBundledProgressEntries().filter(function(entry) { return entry.stats.attempts > 0; }).length;
   document.getElementById("answeredStat").textContent = answered;
-  document.getElementById("accuracyStat").textContent = history.length ? Math.max.apply(null, history.map(function(item) { return item.percent; })) + "%" : "—";
+  const topic = latest ? summarizeTopicResults(latest).sort(function(a, b) { return b.total - a.total; })[0] : null;
+  document.getElementById("accuracyStat").textContent = topic ? topic.accuracy + "%" : "—";
+  document.getElementById("latestAccuracyTopic").textContent = topic ? topic.topic : "Build confidence topic by topic";
 }
 
 function getBundledProgressEntries() {
@@ -938,7 +1126,7 @@ function getBundledProgressEntries() {
 
 function getSubjectCoverage(subject) {
   const topicIds = new Set(subject.topics.map(function(topic) { return topic[0]; }));
-  const total = builtInQuestionBank.reduce(function(sum, question) { return sum + (topicIds.has(question.topic) ? 1 : 0); }, 0);
+  const total = permanentQuestionBank.reduce(function(sum, question) { return sum + (topicIds.has(question.topic) ? 1 : 0); }, 0);
   const entries = getBundledProgressEntries().filter(function(entry) { return topicIds.has(entry.question.topic) && entry.stats.attempts > 0; });
   const attempts = entries.reduce(function(sum, entry) { return sum + entry.stats.attempts; }, 0);
   const correct = entries.reduce(function(sum, entry) { return sum + entry.stats.correct; }, 0);
@@ -954,15 +1142,15 @@ function getSubjectCoverage(subject) {
 }
 
 function renderBankSize() {
-  const count = builtInQuestionBank.length;
-  document.getElementById("bankSizeSummary").textContent = count >= 1300
-    ? "1,300+ MCQs ready for you to practice"
+  const count = permanentQuestionBank.length;
+  document.getElementById("bankSizeSummary").textContent = count >= 1400
+    ? "1,400+ MCQs ready for you to practice"
     : count.toLocaleString() + " MCQs ready for you to practice";
 }
 
 function renderModuleCoverage() {
   const subjectStats = subjects.map(getSubjectCoverage);
-  const total = builtInQuestionBank.length;
+  const total = permanentQuestionBank.length;
   const unique = getBundledProgressEntries().filter(function(entry) { return entry.stats.attempts > 0; }).length;
   const coverage = total ? Math.round(unique / total * 100) : 0;
   document.getElementById("overallCoveragePercent").textContent = coverage + "%";
@@ -1006,19 +1194,85 @@ function renderAnalysis() {
   const wrong = stats.reduce(function(total, item) { return total + item.wrong; }, 0);
   const unknown = stats.reduce(function(total, item) { return total + item.unknown; }, 0);
   const accuracy = attempted ? Math.round(correct / attempted * 100) : 0;
-  const coverage = builtInQuestionBank.length ? Math.round(unique / builtInQuestionBank.length * 100) : 0;
+  const coverage = permanentQuestionBank.length ? Math.round(unique / permanentQuestionBank.length * 100) : 0;
   document.getElementById("analysisSummary").innerHTML =
     '<div class="analysis-stat"><span>TOTAL ATTEMPTS</span><b>' + attempted.toLocaleString() + '</b></div>' +
     '<div class="analysis-stat"><span>UNIQUE ANSWERED</span><b>' + unique.toLocaleString() + '</b></div>' +
     '<div class="analysis-stat"><span>CORRECT</span><b class="analysis-good">' + correct + '</b></div>' +
     '<div class="analysis-stat"><span>WRONG</span><b class="analysis-bad">' + wrong + '</b></div>' +
     '<div class="analysis-stat"><span>OVERALL ACCURACY</span><b>' + accuracy + '%</b><small>correct ÷ all attempts</small></div>' +
-    '<div class="analysis-stat"><span>BANK COVERAGE</span><b>' + coverage + '%</b><small>' + unique + ' of ' + builtInQuestionBank.length.toLocaleString() + '</small></div>';
+    '<div class="analysis-stat"><span>BANK COVERAGE</span><b>' + coverage + '%</b><small>' + unique + ' of ' + permanentQuestionBank.length.toLocaleString() + '</small></div>';
   document.getElementById("analysisRows").innerHTML = stats.map(function(item) {
     const percent = item.attempted ? Math.round(item.correct / item.attempted * 100) : 0;
     return '<tr><td><span class="analysis-topic-name">' + escapeHtml(item.title) + '</span><span class="analysis-topic-accuracy">' + percent + '% accuracy</span><span class="analysis-bar"><i style="width:' + percent + '%"></i></span></td><td data-label="Available">' + item.available + '</td><td data-label="Unique answered">' + item.unique + '</td><td data-label="Attempts">' + item.attempted + '</td><td class="analysis-good" data-label="Correct">' + item.correct + '</td><td class="analysis-bad" data-label="Wrong">' + item.wrong + '</td><td class="analysis-skip" data-label="Don’t know">' + item.unknown + '</td></tr>';
   }).join("");
   renderAnalysisDetails(stats);
+  renderPerformanceTrend();
+}
+
+function renderPerformanceTrend() {
+  const sessions = loadHistoryDetails().map(function(session) {
+    const timestamp = Number.isFinite(session.completedAt) ? session.completedAt : Date.parse(session.date);
+    return { session: session, timestamp: timestamp, hasTime: Number.isFinite(session.completedAt) };
+  }).filter(function(entry) { return Number.isFinite(entry.timestamp) && Array.isArray(entry.session.answers) && entry.session.answers.length; }).sort(function(a, b) { return a.timestamp - b.timestamp; });
+  const available = new Set(sessions.flatMap(function(entry) { return entry.session.answers.map(function(answer) { return answer.topic; }); }));
+  const knownTopics = Array.from(bundledTopicCounts.keys());
+  const topicPicker = document.getElementById("trendTopics");
+  const graph = document.getElementById("trendGraph");
+  if (!available.size) {
+    topicPicker.replaceChildren();
+    graph.textContent = "Complete quizzes with saved question results to see a trend.";
+    return;
+  }
+  if (!selectedTrendTopics.size) selectedTrendTopics.add(Array.from(available)[0]);
+  selectedTrendTopics = new Set(Array.from(selectedTrendTopics).filter(function(id) { return knownTopics.includes(id); }));
+  const choice = function(id) {
+    return '<label class="trend-choice"><input type="checkbox" value="' + escapeHtml(id) + '" ' + (selectedTrendTopics.has(id) ? 'checked' : '') + '><span>' + escapeHtml(getTopicName(id)) + '</span></label>';
+  };
+  const others = knownTopics.filter(function(id) { return !available.has(id); });
+  topicPicker.innerHTML = Array.from(available).filter(function(id) { return knownTopics.includes(id); }).map(choice).join("") +
+    (others.length ? '<details class="trend-more" ' + (others.some(function(id) { return selectedTrendTopics.has(id); }) ? 'open' : '') + '><summary>Other topics (no recorded quizzes)</summary><div>' + others.map(choice).join("") + '</div></details>' : '');
+  topicPicker.querySelectorAll("input").forEach(function(input) {
+    input.addEventListener("change", function() {
+      if (input.checked) selectedTrendTopics.add(input.value); else selectedTrendTopics.delete(input.value);
+      renderPerformanceTrend();
+    });
+  });
+  if (!selectedTrendTopics.size) { graph.textContent = "Select one or more topics to view their progress."; return; }
+  if (!Array.from(selectedTrendTopics).some(function(id) { return available.has(id); })) { graph.textContent = "No completed assessments for the selected topics yet."; return; }
+  const palette = ["#42b8ac", "#e59b71", "#9585d5", "#c29935", "#488ccd"];
+  const selected = Array.from(selectedTrendTopics);
+  const xFor = function(index) { return 48 + (sessions.length === 1 ? 264 : index * 528 / (sessions.length - 1)); };
+  const yFor = function(accuracy) { return 210 - accuracy * 1.7; };
+  const lines = selected.map(function(topic, colorIndex) {
+    const points = sessions.map(function(entry, index) {
+      const answers = entry.session.answers.filter(function(answer) { return answer.topic === topic; });
+      if (!answers.length) return null;
+      const correct = answers.filter(function(answer) { return answer.status === "correct"; }).length;
+      return { x: xFor(index), y: yFor(correct / answers.length * 100), correct: correct, total: answers.length, accuracy: Math.round(correct / answers.length * 100), session: entry.session, timestamp: entry.timestamp };
+    }).filter(Boolean);
+    const color = palette[colorIndex % palette.length];
+    const path = points.length > 1 ? '<polyline points="' + points.map(function(point) { return point.x + ',' + point.y; }).join(' ') + '" fill="none" stroke="' + color + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>' : '';
+    const dots = points.map(function(point) {
+      const detail = getTopicName(topic) + ' · ' + point.accuracy + '% · ' + point.correct + '/' + point.total + ' · ' + point.session.name + ' · ' + new Date(point.timestamp).toLocaleString();
+      return '<circle class="trend-point" cx="' + point.x + '" cy="' + point.y + '" r="7" fill="' + color + '" tabindex="0" role="button" aria-label="' + escapeHtml(detail) + '" data-detail="' + escapeHtml(detail) + '"><title>' + escapeHtml(detail) + '</title></circle>';
+    }).join('');
+    return path + dots;
+  }).join('');
+  const guides = [0, 50, 100].map(function(percent) { return '<line x1="48" y1="' + yFor(percent) + '" x2="576" y2="' + yFor(percent) + '" class="trend-guide"/><text x="5" y="' + (yFor(percent) + 4) + '" class="trend-axis">' + percent + '%</text>'; }).join('');
+  const labelStep = Math.max(1, Math.ceil(sessions.length / 5));
+  const xLabels = sessions.map(function(entry, index) {
+    if (index % labelStep !== 0 && index !== sessions.length - 1) return '';
+    const options = entry.hasTime ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' } : { month: 'short', day: 'numeric' };
+    return '<text x="' + xFor(index) + '" y="238" text-anchor="middle" class="trend-axis">' + escapeHtml(new Date(entry.timestamp).toLocaleString(undefined, options)) + '</text>';
+  }).join('');
+  graph.innerHTML = '<div class="trend-scroll"><svg viewBox="0 0 600 250" role="img" aria-label="Topic accuracy across completed quizzes">' + guides + xLabels + lines + '</svg></div><div class="trend-legend">' + selected.map(function(topic, index) { return '<span><i style="background:' + palette[index % palette.length] + '"></i>' + escapeHtml(getTopicName(topic)) + '</span>'; }).join('') + '</div><p id="trendDetail" aria-live="polite">Tap a point for quiz details. Older quizzes without a reliable date or question breakdown are omitted.</p>';
+  graph.querySelectorAll(".trend-point").forEach(function(point) {
+    const show = function() { document.getElementById("trendDetail").textContent = point.dataset.detail; };
+    point.addEventListener("click", show);
+    point.addEventListener("focus", show);
+    point.addEventListener("keydown", function(event) { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); show(); } });
+  });
 }
 
 function renderAnalysisDetails(topicStats) {
@@ -1058,22 +1312,57 @@ function renderOverviewNotes() {
 
 function renderNotesPage() {
   const container = document.getElementById("savedNotesList");
-  const notes = loadMarkedQuestions();
+  const notes = loadMarkedQuestions().filter(function(item) { return item.marked; });
+  const back = document.getElementById("notesBack");
+  if (selectedNotesTopic && !notes.some(function(item) { return item.topic === selectedNotesTopic; })) selectedNotesTopic = null;
+  back.hidden = !selectedNotesTopic;
   if (!notes.length) {
     container.innerHTML = '<div class="empty-history"><strong>No marked questions yet.</strong><span>During a quiz, select “Mark + note” to start a personal review list.</span></div>';
     return;
   }
-  container.innerHTML = notes.map(function(item) {
-    return '<article class="saved-note-card"><div class="saved-note-top"><span class="topic-pill">' + escapeHtml(getTopicName(item.topic)) + '</span><button class="remove-mark-button" data-remove-mark="' + encodeURIComponent(item.id) + '">Remove mark</button></div><h3>' + escapeHtml(item.text) + '</h3><p>' + (item.note ? escapeHtml(item.note) : '<span class="no-note">No personal note added.</span>') + '</p></article>';
+  if (!selectedNotesTopic) {
+    const groups = new Map();
+    notes.forEach(function(item) { groups.set(item.topic, (groups.get(item.topic) || 0) + 1); });
+    container.innerHTML = Array.from(groups, function(entry) {
+      return '<button type="button" class="marked-topic-card" data-notes-topic="' + escapeHtml(entry[0]) + '"><b>' + escapeHtml(getTopicName(entry[0])) + '</b><span>' + entry[1] + ' marked question' + (entry[1] === 1 ? '' : 's') + ' →</span></button>';
+    }).join("");
+    container.querySelectorAll("[data-notes-topic]").forEach(function(button) {
+      button.addEventListener("click", function() { selectedNotesTopic = button.dataset.notesTopic; renderNotesPage(); });
+    });
+    return;
+  }
+  const availableQuestions = new Map(questionBank.map(function(question) { return [questionId(question), question]; }));
+  const imageFigures = new Map();
+  container.innerHTML = notes.filter(function(item) { return item.topic === selectedNotesTopic; }).map(function(item) {
+    const question = availableQuestions.get(item.id);
+    const figures = question ? (question.images || (question.image ? [question.image] : [])) : [];
+    const images = figures.map(function(figure, index) {
+      const key = item.id + ':' + index;
+      imageFigures.set(key, figure);
+      return '<button type="button" class="question-image-button" data-notes-image="' + escapeHtml(key) + '" aria-label="Enlarge question image"><img src="' + escapeHtml(figure.src) + '" alt="' + escapeHtml(figure.alt || 'Question image') + '" loading="lazy"></button>';
+    }).join('');
+    const choices = question && Array.isArray(question.answers) ? '<ol class="saved-note-answers" aria-label="Answer choices">' + question.answers.map(function(answer, index) {
+      return '<li><span class="answer-letter" aria-hidden="true">' + 'ABCD'[index] + '</span><span class="answer-text">' + escapeHtml(answer) + '</span></li>';
+    }).join('') + '</ol>' : '';
+    return '<article class="saved-note-card"><div class="saved-note-top"><span class="topic-pill">' + escapeHtml(getTopicName(item.topic)) + '</span><button class="remove-mark-button" data-remove-mark="' + encodeURIComponent(item.id) + '">Remove mark</button></div><h3>' + escapeHtml(item.text) + '</h3>' + (images ? '<div class="question-images saved-note-images">' + images + '</div>' : '') + choices + '<p>' + (item.note ? escapeHtml(item.note) : '<span class="no-note">No personal note added.</span>') + '</p></article>';
   }).join("");
+  container.querySelectorAll('[data-notes-image]').forEach(function(button) {
+    button.addEventListener('click', function() { openExamImage(imageFigures.get(button.dataset.notesImage)); });
+  });
   container.querySelectorAll("[data-remove-mark]").forEach(function(button) {
     button.addEventListener("click", function() {
       const id = decodeURIComponent(button.dataset.removeMark);
-      saveMarkedQuestions(loadMarkedQuestions().filter(function(item) { return item.id !== id; }));
+      saveMarkedQuestions(loadMarkedQuestions().filter(function(item) {
+        if (item.id !== id) return true;
+        item.marked = false;
+        return Boolean(item.note);
+      }));
       renderNotesPage();
     });
   });
 }
+
+document.getElementById("notesBack").addEventListener("click", function() { selectedNotesTopic = null; renderNotesPage(); });
 
 function renderOverviewPerformance() {
   const container = document.getElementById("latestPerformance");
@@ -1082,7 +1371,7 @@ function renderOverviewPerformance() {
     container.innerHTML = '<div class="performance-empty"><div><p class="eyebrow">LATEST QUIZ BREAKDOWN</p><h3>Your topic results will appear here.</h3><p>Finish a quiz to see the number of MCQs, correct answers, wrong answers, and “I don’t know” responses for every topic you selected.</p></div><button class="outline-button" data-performance-create>Build a quiz <span>→</span></button></div>';
   } else {
     const rows = session.breakdown.map(function(item) {
-      return '<article class="topic-performance-row"><div class="topic-performance-title"><b>' + escapeHtml(item.topic) + '</b><span>' + item.total + ' MCQ' + (item.total === 1 ? "" : "s") + '</span></div><div class="performance-counts"><span class="performance-correct"><b>' + item.correct + '</b> right</span><span class="performance-wrong"><b>' + item.wrong + '</b> wrong</span><span class="performance-unknown"><b>' + item.unknown + '</b> don’t know</span></div></article>';
+      return '<article class="topic-performance-row"><div class="topic-performance-title"><b>' + escapeHtml(item.topic) + '</b><span>' + item.total + ' MCQ' + (item.total === 1 ? "" : "s") + '</span></div><div class="performance-counts"><span class="performance-correct"><b>' + item.correct + '</b> right</span><span class="performance-wrong"><b>' + item.wrong + '</b> wrong</span><span class="performance-unknown"><b>' + (item.unanswered ?? item.unknown) + '</b> unanswered</span><span class="performance-unknown"><b>' + (item.idk ?? item.unknown) + '</b> IDK marked</span></div></article>';
     }).join("");
     container.innerHTML = '<div class="performance-heading"><div><p class="eyebrow">LATEST QUIZ BREAKDOWN</p><h3>' + escapeHtml(session.name) + '</h3><p>' + session.total + ' MCQs · ' + session.mode + ' mode · ' + escapeHtml(session.date) + '</p></div><button class="text-button" data-performance-create>New quiz <span>→</span></button></div><div class="topic-performance-list">' + rows + '</div>';
   }
@@ -1336,6 +1625,50 @@ document.getElementById("nextButton").addEventListener("click", goToNextQuestion
 document.getElementById("previousQuestion").addEventListener("click", function() { goToQuestion(currentQuiz.index - 1); });
 document.getElementById("forwardQuestion").addEventListener("click", function() { goToQuestion(currentQuiz.index + 1); });
 document.getElementById("questionJump").addEventListener("change", function(event) { goToQuestion(Number(event.target.value)); });
+document.getElementById("continueExamDisclaimer").addEventListener("click", function() {
+  document.getElementById("examDisclaimer").close();
+  examDisclaimerAccepted = true;
+  startQuiz();
+});
+document.getElementById("cancelExamDisclaimer").addEventListener("click", function() { document.getElementById("examDisclaimer").close(); });
+document.getElementById("closeExamImage").addEventListener("click", function() { document.getElementById("examImageViewer").close(); });
+document.getElementById("examImageViewer").addEventListener("click", function(event) { if (event.target === event.currentTarget) event.currentTarget.close(); });
+(function enableExamImageZoom() {
+  const viewer = document.getElementById("examImageViewer");
+  const area = viewer.querySelector(".exam-viewer-area");
+  const image = document.getElementById("examViewerImage");
+  const points = new Map();
+  let scale = 1, x = 0, y = 0, lastX = 0, lastY = 0, lastDistance = 0;
+  function paint() { image.style.transform = "translate(" + x + "px," + y + "px) scale(" + scale + ")"; }
+  area.addEventListener("pointerdown", function(event) {
+    points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    area.setPointerCapture(event.pointerId);
+    lastX = event.clientX; lastY = event.clientY;
+    if (points.size === 2) {
+      const pair = Array.from(points.values());
+      lastDistance = Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y);
+    }
+  });
+  area.addEventListener("pointermove", function(event) {
+    if (!points.has(event.pointerId)) return;
+    points.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (points.size === 2) {
+      const pair = Array.from(points.values());
+      const distance = Math.hypot(pair[0].x - pair[1].x, pair[0].y - pair[1].y);
+      if (lastDistance) scale = Math.max(1, Math.min(6, scale * distance / lastDistance));
+      lastDistance = distance;
+    } else if (scale > 1) { x += event.clientX - lastX; y += event.clientY - lastY; }
+    lastX = event.clientX; lastY = event.clientY; paint();
+  });
+  function end(event) { points.delete(event.pointerId); lastDistance = 0; }
+  area.addEventListener("pointerup", end); area.addEventListener("pointercancel", end);
+  area.addEventListener("wheel", function(event) {
+    event.preventDefault(); scale = Math.max(1, Math.min(6, scale * (event.deltaY < 0 ? 1.15 : .87)));
+    if (scale === 1) x = y = 0;
+    paint();
+  }, { passive: false });
+  viewer.addEventListener("close", function() { points.clear(); scale = 1; x = y = 0; paint(); });
+})();
 document.getElementById("performanceShortcut").addEventListener("click", function() { setView("analysis"); });
 document.getElementById("submitAnswerButton").addEventListener("click", submitAnswer);
 document.getElementById("revealExplanation").addEventListener("click", function() {
@@ -1353,12 +1686,8 @@ document.getElementById("questionNote").addEventListener("input", function() {
   document.getElementById("noteSaveStatus").textContent = "Unsaved changes";
 });
 document.getElementById("exitQuiz").addEventListener("click", function() {
-  clearInterval(timerInterval);
-  if (progressState) {
-    progressState.activeQuiz = null;
-    saveProgress();
-  }
-  setView("create");
+  if (reviewOnly) setView("results");
+  else finishQuiz();
 });
 document.getElementById("newQuiz").addEventListener("click", function() {
   currentQuiz = null;
@@ -1437,6 +1766,8 @@ function restoreBuilderSettings() {
 }
 
 function refreshProgressViews() {
+  renderProfile();
+  applyTheme();
   restoreBuilderSettings();
   renderSourceList();
   updateRevisitOptions();
@@ -1470,7 +1801,11 @@ async function initializeProgress() {
     progressReady = true;
     refreshProgressViews();
     restoreActiveQuiz();
-    showFirstMobileNavigation();
+    if (!cleanStudentName(progressState.profile?.name)) {
+      document.getElementById("cancelProfile").hidden = true;
+      document.getElementById("profileDialog").showModal();
+    }
+    else showFirstMobileNavigation();
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function() {});
   } catch (error) {
     progressError = error;
@@ -1505,6 +1840,8 @@ async function importProgress(file) {
     if (file.size > 10 * 1024 * 1024) throw new Error("Backup is larger than 10 MB.");
     const imported = MedRecallProgress.parseBackup(await file.text());
     if (!window.confirm(MedRecallI18n.t("Replace all progress on this device with this backup?"))) return;
+    if (!imported.profile) imported.profile = progressState.profile || { name: "" };
+    if (!imported.uiPreferences) imported.uiPreferences = progressState.uiPreferences || { theme: "dark" };
     await MedRecallProgress.flush().catch(function() {});
     await MedRecallProgress.save(imported);
     progressState = imported;
@@ -1524,6 +1861,8 @@ async function resetProgress() {
   try {
     await MedRecallProgress.flush().catch(function() {});
     const cleared = MedRecallProgress.empty();
+    cleared.profile = progressState.profile || { name: "" };
+    cleared.uiPreferences = progressState.uiPreferences || { theme: "dark" };
     await MedRecallProgress.save(cleared);
     progressState = cleared;
     currentQuiz = null;
@@ -1547,6 +1886,7 @@ document.getElementById("progressImportFile").addEventListener("change", functio
 document.getElementById("resetProgressButton").addEventListener("click", resetProgress);
 document.getElementById("quizBuilder").addEventListener("change", captureBuilderSettings);
 document.getElementById("quizName").addEventListener("blur", captureBuilderSettings);
+window.addEventListener("pagehide", saveActiveQuiz);
 
 loadImportedQuestions();
 renderBankSize();
