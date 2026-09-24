@@ -1,6 +1,6 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
 importScripts("./releases.js");
-const CACHE_NAME = "medrecall-offline-bb5e747daf54d69a";
+const CACHE_NAME = "medrecall-offline-255bd8f4e8b9680c";
 const CACHE_PREFIX = "medrecall-offline-";
 const SCOPE_PATH = new URL(self.registration.scope).pathname;
 const SCOPE_SUFFIX = "-" + encodeURIComponent(SCOPE_PATH);
