@@ -1,6 +1,6 @@
 /* The developer build updates CACHE_NAME when any offline application file changes. */
 importScripts("./releases.js");
-const CACHE_NAME = "medrecall-offline-b2815c29273ba3d3";
+const CACHE_NAME = "medrecall-offline-bb5e747daf54d69a";
 const CACHE_PREFIX = "medrecall-offline-";
 const SCOPE_PATH = new URL(self.registration.scope).pathname;
 const SCOPE_SUFFIX = "-" + encodeURIComponent(SCOPE_PATH);
@@ -18,6 +18,7 @@ const APP_FILES = [
   "./assets/icon-512.png",
   "./assets/medrecall-logo.png",
   "./assets/study-doctor-male.jpg",
+  "./assets/study-doctor-mobile.jpg",
   "./exam-bank.js",
   "./i18n.js",
   "./index.html",
